@@ -57,7 +57,7 @@ func main() {
 		// Check the name separately because it is the character's required identifier.
 		if *name == "" {
 			fmt.Println("name is required")
-			return
+			os.Exit(2)
 		}
 		if *race == "" || *className == "" {
 			fmt.Println("race and class are required")

@@ -62,20 +62,16 @@ func (r *JSONCharacterRepository) Create(character *characterdomain.Character) e
 		return err
 	}
 
-	characters = append(characters, character)
-
-	file, err := os.Create(r.filePath)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer file.Close()
-
-	if err := json.NewEncoder(file).Encode(characters); err != nil {
-		return fmt.Errorf("failed to encode JSON: %w", err)
-		// Update replaces an existing character with the same name.
+	// Names identify characters, so creating an existing name updates that record
+	// instead of leaving duplicate records that could make lookup ambiguous.
+	for index, existingCharacter := range characters {
+		if existingCharacter.Name == character.Name {
+			characters[index] = character
+			return r.writeAll(characters)
+		}
 	}
 
-	return nil
+	return r.writeAll(append(characters, character))
 }
 
 func (r *JSONCharacterRepository) Update(character *characterdomain.Character) error {
