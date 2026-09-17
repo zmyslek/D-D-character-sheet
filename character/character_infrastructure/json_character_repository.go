@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	// JSONCharacterRepository stores characters in a JSON file on disk.
 	"os"
 
@@ -52,7 +53,7 @@ func (r *JSONCharacterRepository) GetByName(name string) (*characterdomain.Chara
 		// Create appends a character and writes the complete collection back to disk.
 	}
 
-	return nil, errors.New("character not found")
+	return nil, fmt.Errorf("character %q not found", name)
 }
 
 func (r *JSONCharacterRepository) Create(character *characterdomain.Character) error {
