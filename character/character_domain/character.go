@@ -1,8 +1,8 @@
 package characterdomain
 
 import (
-	classdomain "mpp-zmyslek/class_domain"
-	racedomain "mpp-zmyslek/race_domain"
+	classdomain "mpp-zmyslek/class/class_domain"
+	racedomain "mpp-zmyslek/race/race_domain"
 )
 
 type Character struct {
