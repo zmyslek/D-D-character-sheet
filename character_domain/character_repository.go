@@ -1,4 +1,4 @@
-package character
+package characterdomain
 
 type CharacterRepository interface {
 	GetAll() ([]*Character, error)
