@@ -6,6 +6,7 @@ import (
 )
 
 type Character struct {
+	// Character contains the information needed to represent a player character.
 	Name  string
 	Race  racedomain.Race
 	Class classdomain.Class
@@ -21,10 +22,11 @@ type Character struct {
 	// Money       [5]int
 	// Speed       int
 	// HitPoints   int
-	Str int //strength
-	Dex int //dexterity
-	Con int //constitution
-	Int int //intelligence
-	Wis int //wisdom
-	Cha int //charisma
+	// Ability scores describe the character's core physical and mental abilities.
+	Str int // strength
+	Dex int // dexterity
+	Con int // constitution
+	Int int // intelligence
+	Wis int // wisdom
+	Cha int // charisma
 }
