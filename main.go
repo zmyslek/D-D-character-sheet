@@ -41,7 +41,7 @@ func main() {
 		name := createCmd.String("name", "", "character name")
 		race := createCmd.String("race", "", "character race")
 		className := createCmd.String("class", "", "character class")
-		background := createCmd.String("background", "", "character background")
+		background := createCmd.String("background", "acolyte", "character background")
 		skills := createCmd.String("skills", "", "comma-separated skill proficiencies")
 		level := createCmd.Int("level", 0, "character level")
 		strength := createCmd.Int("str", 0, "strength")
@@ -115,6 +115,7 @@ func main() {
 			class.SkillOptions,
 			class.SkillChoiceCount,
 		)
+		character.SkillProficiencies = addBackgroundSkills(character.SkillProficiencies, character.Background)
 
 		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
 		// Keep character data in one JSON file so it survives between CLI runs.
@@ -294,6 +295,13 @@ func addSkillProficiencies(existing, options []string, choiceCount int) []string
 		result = append(result, normalized)
 	}
 	return result
+}
+
+func addBackgroundSkills(existing []string, background string) []string {
+	backgroundSkills := map[string][]string{
+		"acolyte": {"insight", "religion"},
+	}
+	return addSkillProficiencies(existing, backgroundSkills[strings.ToLower(strings.TrimSpace(background))], 2)
 }
 
 func printCharacter(character *characterdomain.Character) {
