@@ -118,8 +118,17 @@ func (character *Character) SpellSlots() map[int]int {
 func (character *Character) CantripCount() int {
 	level := character.Level
 	className := strings.ToLower(strings.TrimSpace(character.Class))
-	if className == "paladin" || className == "ranger" || className == "warlock" || level < 1 {
+	if className == "paladin" || className == "ranger" || level < 1 {
 		return 0
+	}
+	if className == "warlock" {
+		if level >= 10 {
+			return 4
+		}
+		if level >= 4 {
+			return 3
+		}
+		return 2
 	}
 	if className == "bard" {
 		if level >= 10 {
