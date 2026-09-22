@@ -328,9 +328,6 @@ func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("Skill proficiencies: %s\n", strings.Join(character.SkillProficiencies, ", "))
 	if character.CanCastSpells() {
 		slots := character.SpellSlots()
-		if strings.EqualFold(character.Class, "warlock") {
-			slots[0] = 4
-		}
 		levels := make([]int, 0, len(slots))
 		for level := range slots {
 			levels = append(levels, level)
@@ -353,6 +350,15 @@ func printCharacter(character *characterdomain.Character) {
 	if character.Shield != "" {
 		fmt.Printf("Shield: %s\n", strings.ToLower(character.Shield))
 	}
+	if character.CanCastSpells() {
+		ability, score := character.SpellcastingAbility()
+		fmt.Printf("Spellcasting ability: %s\n", ability)
+		fmt.Printf("Spell save DC: %d\n", 8+characterdomain.ProficiencyBonus(character.Level)+characterdomain.AbilityModifier(score))
+		fmt.Printf("Spell attack bonus: %s\n", formatModifier(characterdomain.ProficiencyBonus(character.Level)+characterdomain.AbilityModifier(score)))
+	}
+	fmt.Printf("Armor class: %d\n", character.ArmorClass())
+	fmt.Printf("Initiative bonus: %s\n", formatModifier(characterdomain.AbilityModifier(character.Dex)))
+	fmt.Printf("Passive perception: %d\n", 10+characterdomain.AbilityModifier(character.Wis))
 }
 
 func learnOrPrepareSpell(name, spellName string, prepare bool) {

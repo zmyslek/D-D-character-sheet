@@ -100,16 +100,108 @@ func (character *Character) SpellSlots() map[int]int {
 		{4, 3, 3, 3, 1}, {4, 3, 3, 3, 2}, {4, 3, 3, 3, 2, 1}, {4, 3, 3, 3, 2, 1, 1},
 		{4, 3, 3, 3, 2, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1},
 		{4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1},
-		{4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1},
+		{4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 3, 2, 2, 1, 1},
 	}
 	if casterLevel > 20 {
 		casterLevel = 20
 	}
 	slots := make(map[int]int)
+	if cantrips := character.CantripCount(); cantrips > 0 {
+		slots[0] = cantrips
+	}
 	for slotLevel, count := range fullCasterSlots[casterLevel] {
 		slots[slotLevel+1] = count
 	}
 	return slots
+}
+
+func (character *Character) CantripCount() int {
+	level := character.Level
+	className := strings.ToLower(strings.TrimSpace(character.Class))
+	if className == "paladin" || className == "ranger" || className == "warlock" || level < 1 {
+		return 0
+	}
+	if className == "bard" {
+		if level >= 10 {
+			return 4
+		}
+		if level >= 4 {
+			return 3
+		}
+		return 2
+	}
+	if level >= 10 {
+		return 5
+	}
+	if level >= 4 {
+		return 4
+	}
+	return 3
+}
+
+func (character *Character) ArmorClass() int {
+	dexterity := AbilityModifier(character.Dex)
+	armor := strings.ToLower(strings.TrimSpace(character.Armor))
+	armorClass := 10 + dexterity
+
+	switch armor {
+	case "leather armor":
+		armorClass = 11 + dexterity
+	case "studded leather armor":
+		armorClass = 12 + dexterity
+	case "hide armor":
+		armorClass = 12 + min(dexterity, 2)
+	case "chain shirt":
+		armorClass = 13 + min(dexterity, 2)
+	case "scale mail", "breastplate":
+		armorClass = 14 + min(dexterity, 2)
+	case "half plate armor":
+		armorClass = 15 + min(dexterity, 2)
+	case "ring mail":
+		armorClass = 14
+	case "chain mail":
+		armorClass = 16
+	case "splint armor":
+		armorClass = 17
+	case "plate armor":
+		armorClass = 18
+	case "":
+		className := strings.ToLower(strings.TrimSpace(character.Class))
+		if className == "barbarian" {
+			armorClass = 10 + dexterity + AbilityModifier(character.Con)
+		} else if className == "monk" {
+			armorClass = 10 + dexterity + AbilityModifier(character.Wis)
+		}
+	}
+
+	if character.Shield != "" {
+		armorClass += 2
+	}
+	return armorClass
+}
+
+func (character *Character) SpellcastingAbility() (string, int) {
+	abilities := map[string]struct {
+		name  string
+		score int
+	}{
+		"bard": {"charisma", character.Cha}, "cleric": {"wisdom", character.Wis},
+		"druid": {"wisdom", character.Wis}, "paladin": {"charisma", character.Cha},
+		"ranger": {"wisdom", character.Wis}, "sorcerer": {"charisma", character.Cha},
+		"warlock": {"charisma", character.Cha}, "wizard": {"intelligence", character.Int},
+	}
+	ability, ok := abilities[strings.ToLower(strings.TrimSpace(character.Class))]
+	if !ok {
+		return "", 0
+	}
+	return ability.name, ability.score
+}
+
+func min(first, second int) int {
+	if first < second {
+		return first
+	}
+	return second
 }
 
 // ApplyAbilityBonus applies a racial ability-score increase to the character.

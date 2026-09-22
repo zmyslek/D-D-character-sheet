@@ -26,26 +26,26 @@ Now for the actual requirements that you'll implement. But first, take notice of
 My list of requirements might be somewhat vague. That's deliberate. All you need to know is in the SRD. Also, if you pass the tests connected to the requirement, you've probably implemented it correctly no? Long live TDD. (Note, I've added checkboxes so you can easily copy-paste the list as markdown and check off the items)
 
 1. Character CRU
-- [] Create new characters
-- [] Read their character sheet
+- [x] Create new characters
+- [x] Read their character sheet
 - [] Update relevant bits: level and proficiency bonus
-- [] Characters have the following attributes: name, race, class, level, ability scores, background and proficiency bonus
+- [x] Characters have the following attributes: name, race, class, level, ability scores, background and proficiency bonus
 - [] Ability scores are determined through Standard Array (15/14/13/12/10/8) and Race
-- [] Classes only deal with main classes, we'll ignore subclasses
-- [] Add skill proficiencies on character creation. We'll ignore racial skill proficiencies.
+- [x] Classes only deal with main classes, we'll ignore subclasses
+- [x] Add skill proficiencies on character creation. We'll ignore racial skill proficiencies.
 - [] Determine skill modifiers based on ability scores and proficiency bonus
-- [] We'll ignore level-up bonuses and unlocks other than proficiency bonus and spell slots.
-- [] Anything else listed in the SRD we'll ignore
+- [x] We'll ignore level-up bonuses and unlocks other than proficiency bonus and spell slots.
+- [x] Anything else listed in the SRD we'll ignore
 
 2. Equipment management
 - [] Add equipment to/from a character: weapons, armor and shield
-- [] We'll ignore the concept of "inventory": unequipped items such as a backup dagger, rope, torches, etc.
-- [] Any other gear listed in the SRD we'll ignore
+- [x] We'll ignore the concept of "inventory": unequipped items such as a backup dagger, rope, torches, etc.
+- [x] Any other gear listed in the SRD we'll ignore
 
 3. Spellcasting (When applicable :))
-- [] Add known/prepared spells from spell list for your class. It's okay to pick random spells as long as they fit the slot level
+- [x] Add known/prepared spells from spell list for your class. It's okay to pick random spells as long as they fit the slot level
 - [] Add max spell slots per level
-- Anything else related to spells listed in the SRD we'll ignore
+- [x] Anything else related to spells listed in the SRD we'll ignore
       
 4. Integrate external information
 - [] Enrich spells and items from external API: https://www.dnd5eapi.co/
@@ -56,8 +56,8 @@ PLEASE READ CAREFULLY: this is an API built and maintained by volunteers. They'v
 - [] If you want to do more and build a fully fledged character sheet generator, feel free! We will only look at these properties for this course and exam.
 
 5. Combat stat calculation
-- [] Armor class, initiative, passive perception (character sheet calls it "passive wisdom")
-- [] Spell casting: spellcasting ability, spell save DC, spell attack bonus
+- [x] Armor class, initiative, passive perception (character sheet calls it "passive wisdom")
+- [x] Spell casting: spellcasting ability, spell save DC, spell attack bonus
 
 6. User interfaces
 - [] CLI: create a character, view it and list all characters
