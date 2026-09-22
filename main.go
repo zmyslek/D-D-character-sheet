@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	characterdomain "mpp-zmyslek/character/character_domain"
 	characterinfrastructure "mpp-zmyslek/character/character_infrastructure"
 	equipmentinfrastructure "mpp-zmyslek/equipment/equipment_infrastructure"
+	spellsinfrastructure "mpp-zmyslek/spells/spells_infrastructure"
 )
 
 // usage prints the commands currently supported by the command-line interface.
@@ -241,10 +243,22 @@ func main() {
 		}
 
 	case "learn-spell":
-		// Reserved for adding a known spell to a character.
+		spellCmd := flag.NewFlagSet("learn-spell", flag.ContinueOnError)
+		name := spellCmd.String("name", "", "character name")
+		spellName := spellCmd.String("spell", "", "spell name")
+		if err := spellCmd.Parse(os.Args[2:]); err != nil {
+			return
+		}
+		learnOrPrepareSpell(*name, *spellName, false)
 
 	case "prepare-spell":
-		// Reserved for preparing a spell for use.
+		spellCmd := flag.NewFlagSet("prepare-spell", flag.ContinueOnError)
+		name := spellCmd.String("name", "", "character name")
+		spellName := spellCmd.String("spell", "", "spell name")
+		if err := spellCmd.Parse(os.Args[2:]); err != nil {
+			return
+		}
+		learnOrPrepareSpell(*name, *spellName, true)
 
 	default:
 		usage()
@@ -312,6 +326,22 @@ func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("  CHA: %d (%s)\n", character.Cha, formatModifier(characterdomain.AbilityModifier(character.Cha)))
 	fmt.Printf("Proficiency bonus: %s\n", formatModifier(characterdomain.ProficiencyBonus(character.Level)))
 	fmt.Printf("Skill proficiencies: %s\n", strings.Join(character.SkillProficiencies, ", "))
+	if character.CanCastSpells() {
+		slots := character.SpellSlots()
+		if strings.EqualFold(character.Class, "warlock") {
+			slots[0] = 4
+		}
+		levels := make([]int, 0, len(slots))
+		for level := range slots {
+			levels = append(levels, level)
+		}
+		sort.Ints(levels)
+		fmt.Print("Spell slots:")
+		for _, level := range levels {
+			fmt.Printf("  Level %d: %d", level, slots[level])
+		}
+		fmt.Println()
+	}
 	if character.MainHand != "" {
 		fmt.Printf("Main hand: %s\n", strings.ToLower(character.MainHand))
 	}
@@ -324,6 +354,72 @@ func printCharacter(character *characterdomain.Character) {
 	if character.Shield != "" {
 		fmt.Printf("Shield: %s\n", strings.ToLower(character.Shield))
 	}
+}
+
+func learnOrPrepareSpell(name, spellName string, prepare bool) {
+	if name == "" || spellName == "" {
+		fmt.Println("name and spell are required")
+		return
+	}
+	characterRepository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+	character, err := characterRepository.GetByName(name)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if !character.CanCastSpells() {
+		fmt.Println("this class can't cast spells")
+		return
+	}
+	if prepare && !character.IsPreparedCaster() {
+		fmt.Println("this class learns spells and can't prepare them")
+		return
+	}
+	if !prepare && character.IsPreparedCaster() {
+		fmt.Println("this class prepares spells and can't learn them")
+		return
+	}
+
+	spellRepository := spellsinfrastructure.NewCSVSpellsRepository("csvs/5e-SRD-Spells.csv")
+	spell, err := spellRepository.GetByName(spellName)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	className := strings.ToLower(strings.TrimSpace(character.Class))
+	classAvailable := false
+	for _, availableClass := range spell.Classes {
+		if availableClass == className {
+			classAvailable = true
+			break
+		}
+	}
+	if !classAvailable {
+		fmt.Printf("spell %s is not available to this class\n", strings.ToLower(spell.Name))
+		return
+	}
+	if spell.Level > 0 {
+		available := character.SpellSlots()
+		if available[spell.Level] == 0 {
+			fmt.Println("the spell has higher level than the available spell slots")
+			return
+		}
+	}
+	if prepare {
+		character.PreparedSpells = append(character.PreparedSpells, strings.ToLower(spell.Name))
+		if err := characterRepository.Update(character); err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("Prepared spell %s\n", strings.ToLower(spell.Name))
+		return
+	}
+	character.KnownSpells = append(character.KnownSpells, strings.ToLower(spell.Name))
+	if err := characterRepository.Update(character); err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Printf("Learned spell %s\n", strings.ToLower(spell.Name))
 }
 
 func formatModifier(modifier int) string {

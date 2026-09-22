@@ -23,6 +23,8 @@ type Character struct {
 	OffHand            string
 	Armor              string
 	Shield             string
+	KnownSpells        []string `json:",omitempty"`
+	PreparedSpells     []string `json:",omitempty"`
 	// Height      float64
 	// Weight      float64
 	// Eyes        string
@@ -41,6 +43,73 @@ type Character struct {
 	Int int // intelligence
 	Wis int // wisdom
 	Cha int // charisma
+}
+
+func (character *Character) CanCastSpells() bool {
+	switch strings.ToLower(strings.TrimSpace(character.Class)) {
+	case "bard", "cleric", "druid", "paladin", "ranger", "sorcerer", "warlock", "wizard":
+		return true
+	default:
+		return false
+	}
+}
+
+func (character *Character) IsPreparedCaster() bool {
+	switch strings.ToLower(strings.TrimSpace(character.Class)) {
+	case "cleric", "druid", "paladin", "wizard":
+		return true
+	default:
+		return false
+	}
+}
+
+func (character *Character) SpellSlots() map[int]int {
+	level := character.Level
+	if level < 1 {
+		return nil
+	}
+	className := strings.ToLower(strings.TrimSpace(character.Class))
+	if className == "warlock" {
+		slotLevel := 1
+		slots := 1
+		switch {
+		case level >= 17:
+			slots, slotLevel = 4, 5
+		case level >= 11:
+			slots, slotLevel = 3, 5
+		case level >= 9:
+			slots, slotLevel = 2, 5
+		case level >= 7:
+			slots, slotLevel = 2, 4
+		case level >= 5:
+			slots, slotLevel = 2, 3
+		case level >= 3:
+			slots, slotLevel = 2, 2
+		case level >= 2:
+			slots = 2
+		}
+		return map[int]int{slotLevel: slots}
+	}
+
+	casterLevel := level
+	if className == "paladin" || className == "ranger" {
+		casterLevel = (level + 1) / 2
+	}
+	fullCasterSlots := [][]int{
+		{}, {2}, {3}, {4}, {4, 2}, {4, 3}, {4, 3, 2}, {4, 3, 3, 1}, {4, 3, 3, 2},
+		{4, 3, 3, 3, 1}, {4, 3, 3, 3, 2}, {4, 3, 3, 3, 2, 1}, {4, 3, 3, 3, 2, 1, 1},
+		{4, 3, 3, 3, 2, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1},
+		{4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1},
+		{4, 3, 3, 3, 2, 1, 1, 1, 1}, {4, 3, 3, 3, 2, 1, 1, 1, 1},
+	}
+	if casterLevel > 20 {
+		casterLevel = 20
+	}
+	slots := make(map[int]int)
+	for slotLevel, count := range fullCasterSlots[casterLevel] {
+		slots[slotLevel+1] = count
+	}
+	return slots
 }
 
 // ApplyAbilityBonus applies a racial ability-score increase to the character.
