@@ -1,6 +1,7 @@
 package characterdomain
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -40,6 +41,66 @@ type Character struct {
 	Int int // intelligence
 	Wis int // wisdom
 	Cha int // charisma
+}
+
+// UnmarshalJSON also accepts the object-shaped Race and Class fields written by
+// the previous domain model, so existing character files remain readable.
+func (character *Character) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+
+	decodeName := func(field string) (string, error) {
+		value, ok := fields[field]
+		if !ok {
+			return "", nil
+		}
+
+		var name string
+		if err := json.Unmarshal(value, &name); err == nil {
+			return name, nil
+		}
+
+		var legacy struct {
+			Name      string `json:"Name"`
+			RaceName  string `json:"RaceName"`
+			ClassName string `json:"ClassName"`
+		}
+		if err := json.Unmarshal(value, &legacy); err != nil {
+			return "", err
+		}
+		if field == "Race" {
+			return legacy.RaceName, nil
+		}
+		return legacy.ClassName, nil
+	}
+
+	race, err := decodeName("Race")
+	if err != nil {
+		return fmt.Errorf("invalid race: %w", err)
+	}
+	class, err := decodeName("Class")
+	if err != nil {
+		return fmt.Errorf("invalid class: %w", err)
+	}
+
+	delete(fields, "Race")
+	delete(fields, "Class")
+	normalized, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+
+	type characterAlias Character
+	var decoded characterAlias
+	if err := json.Unmarshal(normalized, &decoded); err != nil {
+		return err
+	}
+	*character = Character(decoded)
+	character.Race = race
+	character.Class = class
+	return nil
 }
 
 func (character *Character) EquipWeapon(weaponName string, slot string) error {
