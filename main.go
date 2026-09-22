@@ -79,6 +79,19 @@ func main() {
 			Cha:                *charisma,
 		}
 
+		raceAbilityRepository := characterinfrastructure.NewCSVRaceAbilityRepository("csvs/RaceAbilityBonuses.csv")
+		raceBonuses, err := raceAbilityRepository.GetByRace(character.Race)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for _, bonus := range raceBonuses {
+			if err := character.ApplyAbilityBonus(bonus.Ability, bonus.Points); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+
 		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
 		// Keep character data in one JSON file so it survives between CLI runs.
 		if err := repository.Create(character); err != nil {
@@ -164,7 +177,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		equipmentRepository := equipmentinfrastructure.NewCSVEquipmentRepository("5e-SRD-Equipment.csv")
+		equipmentRepository := equipmentinfrastructure.NewCSVEquipmentRepository("csvs/5e-SRD-Equipment.csv")
 
 		if *weapon != "" {
 			equipment, err := equipmentRepository.GetByName(*weapon)

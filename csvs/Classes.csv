@@ -1,0 +1,13 @@
+class,hit_die,saving_throw_1,saving_throw_2,skill_options,skill_choice_count,spellcasting_ability
+barbarian,d12,strength,constitution,"animal handling;athletics;intimidation;nature;perception;survival",2,
+bard,d8,dexterity,charisma,"any",3,charisma
+cleric,d8,wisdom,charisma,"history;insight;medicine;persuasion;religion",2,wisdom
+druid,d8,intelligence,wisdom,"arcana;animal handling;insight;medicine;nature;perception;religion;survival",2,wisdom
+fighter,d10,strength,constitution,"acrobatics;animal handling;athletics;history;insight;intimidation;perception;survival",2,
+monk,d8,strength,dexterity,"acrobatics;athletics;history;insight;religion;stealth",2,
+paladin,d10,wisdom,charisma,"athletics;insight;intimidation;medicine;persuasion;religion",2,charisma
+ranger,d10,strength,dexterity,"animal handling;athletics;insight;investigation;nature;perception;stealth;survival",3,wisdom
+rogue,d8,dexterity,intelligence,"acrobatics;athletics;deception;insight;intimidation;investigation;perception;performance;persuasion;sleight of hand;stealth",4,
+sorcerer,d6,constitution,charisma,"arcana;deception;insight;intimidation;persuasion;religion",2,charisma
+warlock,d8,wisdom,charisma,"arcana;deception;history;intimidation;investigation;nature;religion",2,charisma
+wizard,d6,intelligence,wisdom,"arcana;history;insight;investigation;medicine;religion",2,intelligence

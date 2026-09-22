@@ -43,6 +43,32 @@ type Character struct {
 	Cha int // charisma
 }
 
+// ApplyAbilityBonus applies a racial ability-score increase to the character.
+func (character *Character) ApplyAbilityBonus(ability string, points int) error {
+	if points == 0 {
+		return nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(ability)) {
+	case "strength":
+		character.Str += points
+	case "dexterity":
+		character.Dex += points
+	case "constitution":
+		character.Con += points
+	case "intelligence":
+		character.Int += points
+	case "wisdom":
+		character.Wis += points
+	case "charisma":
+		character.Cha += points
+	default:
+		return fmt.Errorf("unknown ability %q", ability)
+	}
+
+	return nil
+}
+
 // UnmarshalJSON also accepts the object-shaped Race and Class fields written by
 // the previous domain model, so existing character files remain readable.
 func (character *Character) UnmarshalJSON(data []byte) error {

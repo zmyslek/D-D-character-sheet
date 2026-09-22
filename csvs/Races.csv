@@ -1,0 +1,10 @@
+race,minage,maxage,alignment,size,speed,abilities,languages
+dragonborn,15,80,extreme alignments,medium,30 ft,"draconic ancestry;breath weapon;damage resistance",Common;Draconic
+dwarf,50,350,lawful tendencies,medium,25 ft,"darkvision;dwarven resilience;dwarven combat training;stonecunning",Common;Dwarvish
+elf,100,750,chaotic good tendencies,medium,30 ft,"darkvision;keen senses;fey ancestry;trance",Common;Elvish
+gnome,40,500,good tendencies,small,25 ft,"darkvision;gnome cunning",Common;Gnomish
+half-elf,20,180,chaotic tendencies,medium,30 ft,"darkvision;fey ancestry;skill versatility",Common;Elvish;one extra language
+half-orc,14,75,chaotic tendencies,medium,30 ft,"darkvision;menacing;relentless endurance;savage attacks",Common;Orc
+halfling,20,150,lawful good tendencies,small,25 ft,"lucky;brave;halfling nimbleness",Common;Halfling
+human,18,100,any alignment,medium,30 ft,"one additional skill;one additional language",Common;one extra language
+tiefling,20,100,chaotic tendencies,medium,30 ft,"darkvision;hellish resistance;infernal legacy",Common;Infernal
