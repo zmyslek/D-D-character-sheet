@@ -1,6 +1,12 @@
 # HZ HBO-ICT Dungeons & Dragons character sheet generator
 If you like D&D, yay! If you dislike it, apologies! As you might have guessed from the title, you are going to build a character sheet generator for Dungeons and Dragons.
 
+## Running the application
+
+From this directory, run `go run . serve` and open `http://localhost:8080`. The web interface lists saved characters, renders their sheets, and provides a character creation form. The local JSON API is available at `GET /api/characters` and `POST /api/characters`. Spell and equipment enrichment can be requested through `/api/spells/{name}` and `/api/equipment/{name}`; those routes query the SRD 5.1 API at a courteous rate.
+
+The command-line interface remains available through `go run . list`, `go run . create ...`, and the other commands shown by `go run .`. Run the test suite with `go test ./...`.
+
 ## Dungeons and dragons?
 (Feel free to skip this part if you've ever played D&D, Pathfinder, Baldur's Gate, Neverwinter Nights, Star Wars: Knights of the Old Republic, or any other D&D inspired (video) game).
 

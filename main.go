@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	characterinfrastructure "mpp-zmyslek/character/character_infrastructure"
 	equipmentinfrastructure "mpp-zmyslek/equipment/equipment_infrastructure"
 	spellsinfrastructure "mpp-zmyslek/spells/spells_infrastructure"
+	web "mpp-zmyslek/web"
 )
 
 // usage prints the commands currently supported by the command-line interface.
@@ -25,7 +27,8 @@ func usage() {
   %s equip -name CHARACTER_NAME -shield SHIELD_NAME
   %s learn-spell -name CHARACTER_NAME -spell SPELL_NAME
   %s prepare-spell -name CHARACTER_NAME -spell SPELL_NAME 
-`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+	%s serve -addr ADDRESS
+`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 // main reads the selected command and runs the matching application workflow.
@@ -136,7 +139,32 @@ func main() {
 		printCharacter(character)
 
 	case "list":
-		// Reserved for listing all saved characters.
+		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		characters, err := repository.GetAll()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for _, character := range characters {
+			fmt.Printf("%s - %s %s (level %d)\n", character.Name, character.Race, character.Class, character.Level)
+		}
+
+	case "serve":
+		serveCmd := flag.NewFlagSet("serve", flag.ContinueOnError)
+		address := serveCmd.String("addr", ":8080", "HTTP listen address")
+		if err := serveCmd.Parse(os.Args[2:]); err != nil {
+			return
+		}
+		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		server, err := web.NewServer(repository)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("web server listening on http://%s\n", *address)
+		if err := http.ListenAndServe(*address, server.Handler()); err != nil {
+			fmt.Println(err)
+		}
 
 	case "delete":
 		deleteCmd := flag.NewFlagSet("delete", flag.ContinueOnError)
