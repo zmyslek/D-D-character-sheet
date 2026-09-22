@@ -92,6 +92,30 @@ func main() {
 			}
 		}
 
+		raceRepository := characterinfrastructure.NewCSVRaceRepository("csvs/Races.csv")
+		selectedRace, err := raceRepository.GetByName(character.Race)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		character.SkillProficiencies = addSkillProficiencies(
+			character.SkillProficiencies,
+			selectedRace.SkillOptions,
+			selectedRace.SkillChoiceCount,
+		)
+
+		classRepository := characterinfrastructure.NewCSVClassRepository("csvs/Classes.csv")
+		class, err := classRepository.GetByName(character.Class)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		character.SkillProficiencies = addSkillProficiencies(
+			character.SkillProficiencies,
+			class.SkillOptions,
+			class.SkillChoiceCount,
+		)
+
 		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
 		// Keep character data in one JSON file so it survives between CLI runs.
 		if err := repository.Create(character); err != nil {
@@ -247,6 +271,27 @@ func splitValues(values string) []string {
 		if trimmed := strings.TrimSpace(part); trimmed != "" {
 			result = append(result, strings.ToLower(trimmed))
 		}
+	}
+	return result
+}
+
+func addSkillProficiencies(existing, options []string, choiceCount int) []string {
+	seen := make(map[string]bool, len(existing)+choiceCount)
+	result := make([]string, 0, len(existing)+choiceCount)
+	for _, skill := range existing {
+		normalized := strings.ToLower(strings.TrimSpace(skill))
+		if normalized != "" && !seen[normalized] {
+			seen[normalized] = true
+			result = append(result, normalized)
+		}
+	}
+	for _, option := range options {
+		normalized := strings.ToLower(strings.TrimSpace(option))
+		if len(result) >= len(existing)+choiceCount || normalized == "" || seen[normalized] {
+			continue
+		}
+		seen[normalized] = true
+		result = append(result, normalized)
 	}
 	return result
 }
