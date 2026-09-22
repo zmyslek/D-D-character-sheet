@@ -8,6 +8,7 @@ import (
 
 	characterdomain "mpp-zmyslek/character/character_domain"
 	characterinfrastructure "mpp-zmyslek/character/character_infrastructure"
+	equipmentinfrastructure "mpp-zmyslek/equipment/equipment_infrastructure"
 )
 
 // usage prints the commands currently supported by the command-line interface.
@@ -128,7 +129,87 @@ func main() {
 		fmt.Printf("deleted %s\n", *name)
 
 	case "equip":
-		// Reserved for adding equipment to a character.
+		equipCmd := flag.NewFlagSet("equip", flag.ContinueOnError)
+		name := equipCmd.String("name", "", "character name")
+		weapon := equipCmd.String("weapon", "", "weapon name")
+		slot := equipCmd.String("slot", "", "weapon slot")
+		armor := equipCmd.String("armor", "", "armor name")
+		shield := equipCmd.String("shield", "", "shield name")
+		if err := equipCmd.Parse(os.Args[2:]); err != nil {
+			return
+		}
+		if *name == "" {
+			fmt.Println("name is required")
+			return
+		}
+
+		selected := 0
+		if *weapon != "" {
+			selected++
+		}
+		if *armor != "" {
+			selected++
+		}
+		if *shield != "" {
+			selected++
+		}
+		if selected != 1 {
+			fmt.Println("provide exactly one of weapon, armor, or shield")
+			return
+		}
+
+		characterRepository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		character, err := characterRepository.GetByName(*name)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		equipmentRepository := equipmentinfrastructure.NewCSVEquipmentRepository("5e-SRD-Equipment.csv")
+
+		if *weapon != "" {
+			equipment, err := equipmentRepository.GetByName(*weapon)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if !strings.EqualFold(equipment.Type, "Weapon") {
+				fmt.Printf("equipment %q is not a weapon\n", *weapon)
+				return
+			}
+			if err := character.EquipWeapon(equipment.Name, *slot); err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+		if *armor != "" {
+			equipment, err := equipmentRepository.GetByName(*armor)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if !strings.EqualFold(equipment.Type, "Armor") || strings.EqualFold(equipment.Name, "Shield") {
+				fmt.Printf("equipment %q is not armor\n", *armor)
+				return
+			}
+			character.Armor = equipment.Name
+		}
+		if *shield != "" {
+			equipment, err := equipmentRepository.GetByName(*shield)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if !strings.EqualFold(equipment.Name, "Shield") {
+				fmt.Printf("equipment %q is not a shield\n", *shield)
+				return
+			}
+			character.Shield = equipment.Name
+		}
+
+		if err := characterRepository.Update(character); err != nil {
+			fmt.Println(err)
+			return
+		}
 
 	case "learn-spell":
 		// Reserved for adding a known spell to a character.
@@ -172,6 +253,18 @@ func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("  CHA: %d (%s)\n", character.Cha, formatModifier(characterdomain.AbilityModifier(character.Cha)))
 	fmt.Printf("Proficiency bonus: %s\n", formatModifier(characterdomain.ProficiencyBonus(character.Level)))
 	fmt.Printf("Skill proficiencies: %s\n", strings.Join(character.SkillProficiencies, ", "))
+	if character.MainHand != "" {
+		fmt.Printf("Main hand: %s\n", strings.ToLower(character.MainHand))
+	}
+	if character.OffHand != "" {
+		fmt.Printf("Off hand: %s\n", strings.ToLower(character.OffHand))
+	}
+	if character.Armor != "" {
+		fmt.Printf("Armor: %s\n", strings.ToLower(character.Armor))
+	}
+	if character.Shield != "" {
+		fmt.Printf("Shield: %s\n", strings.ToLower(character.Shield))
+	}
 }
 
 func formatModifier(modifier int) string {

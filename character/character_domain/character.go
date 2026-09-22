@@ -1,18 +1,27 @@
 package characterdomain
 
 import (
-	classdomain "mpp-zmyslek/class/class_domain"
-	racedomain "mpp-zmyslek/race/race_domain"
+	"fmt"
+	"strings"
+)
+
+const (
+	MainHandSlot = "main hand"
+	OffHandSlot  = "off hand"
 )
 
 type Character struct {
 	// Character contains the information needed to represent a player character.
 	Name               string
-	Race               racedomain.Race
-	Class              classdomain.Class
+	Race               string
+	Class              string
 	Level              int
 	Background         string
 	SkillProficiencies []string
+	MainHand           string
+	OffHand            string
+	Armor              string
+	Shield             string
 	// Height      float64
 	// Weight      float64
 	// Eyes        string
@@ -31,6 +40,19 @@ type Character struct {
 	Int int // intelligence
 	Wis int // wisdom
 	Cha int // charisma
+}
+
+func (character *Character) EquipWeapon(weaponName string, slot string) error {
+	switch strings.ToLower(strings.TrimSpace(slot)) {
+	case MainHandSlot:
+		character.MainHand = weaponName
+	case OffHandSlot:
+		character.OffHand = weaponName
+	default:
+		return fmt.Errorf("slot must be %q or %q", MainHandSlot, OffHandSlot)
+	}
+
+	return nil
 }
 
 // AbilityModifier returns the D&D 5e modifier for an ability score.
