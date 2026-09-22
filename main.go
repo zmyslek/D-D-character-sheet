@@ -206,6 +206,7 @@ func main() {
 				fmt.Println(err)
 				return
 			}
+			fmt.Printf("Equipped weapon %s to %s\n", strings.ToLower(equipment.Name), strings.ToLower(strings.TrimSpace(*slot)))
 		}
 		if *armor != "" {
 			equipment, err := equipmentRepository.GetByName(*armor)
@@ -218,6 +219,7 @@ func main() {
 				return
 			}
 			character.Armor = equipment.Name
+			fmt.Printf("Equipped armor %s\n", strings.ToLower(equipment.Name))
 		}
 		if *shield != "" {
 			equipment, err := equipmentRepository.GetByName(*shield)
@@ -230,6 +232,7 @@ func main() {
 				return
 			}
 			character.Shield = equipment.Name
+			fmt.Printf("Equipped shield %s\n", strings.ToLower(equipment.Name))
 		}
 
 		if err := characterRepository.Update(character); err != nil {

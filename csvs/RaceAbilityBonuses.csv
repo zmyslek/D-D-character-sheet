@@ -18,3 +18,21 @@ human,strength,1
 human,wisdom,1
 tiefling,charisma,2
 tiefling,intelligence,1
+hill dwarf,constitution,2
+hill dwarf,wisdom,1
+mountain dwarf,constitution,2
+mountain dwarf,strength,2
+high elf,dexterity,2
+high elf,intelligence,1
+wood elf,dexterity,2
+wood elf,wisdom,1
+drow,dexterity,2
+drow,charisma,1
+lightfoot halfling,dexterity,2
+lightfoot halfling,charisma,1
+stout halfling,dexterity,2
+stout halfling,constitution,1
+forest gnome,intelligence,2
+forest gnome,dexterity,1
+rock gnome,intelligence,2
+rock gnome,constitution,1

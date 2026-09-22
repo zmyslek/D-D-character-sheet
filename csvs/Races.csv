@@ -8,3 +8,12 @@ half-orc,14,75,chaotic tendencies,medium,30 ft,"darkvision;menacing;relentless e
 halfling,20,150,lawful good tendencies,small,25 ft,"lucky;brave;halfling nimbleness",Common;Halfling,,0
 human,18,100,any alignment,medium,30 ft,"one additional skill;one additional language",Common;one extra language,"acrobatics;animal handling;arcana;athletics;deception;history;insight;intimidation;investigation;medicine;nature;perception;performance;persuasion;religion;sleight of hand;stealth;survival",1
 tiefling,20,100,chaotic tendencies,medium,30 ft,"darkvision;hellish resistance;infernal legacy",Common;Infernal,,0
+hill dwarf,50,350,lawful tendencies,medium,25 ft,"darkvision;dwarven resilience;dwarven combat training;stonecunning",Common;Dwarvish,,0
+mountain dwarf,50,350,lawful tendencies,medium,25 ft,"darkvision;dwarven resilience;dwarven combat training;stonecunning",Common;Dwarvish,,0
+high elf,100,750,chaotic good tendencies,medium,30 ft,"darkvision;keen senses;fey ancestry;trance",Common;Elvish,,0
+wood elf,100,750,chaotic good tendencies,medium,35 ft,"darkvision;keen senses;fey ancestry;trance",Common;Elvish,,0
+drow,100,750,chaotic tendencies,medium,30 ft,"darkvision;keen senses;fey ancestry;trance",Common;Elvish,,0
+lightfoot halfling,20,150,lawful good tendencies,small,25 ft,"lucky;brave;halfling nimbleness",Common;Halfling,,0
+stout halfling,20,150,lawful good tendencies,small,25 ft,"lucky;brave;halfling nimbleness",Common;Halfling,,0
+forest gnome,40,500,good tendencies,small,25 ft,"darkvision;gnome cunning",Common;Gnomish,,0
+rock gnome,40,500,good tendencies,small,25 ft,"darkvision;gnome cunning",Common;Gnomish,,0

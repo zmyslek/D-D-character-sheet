@@ -132,8 +132,14 @@ func (character *Character) UnmarshalJSON(data []byte) error {
 func (character *Character) EquipWeapon(weaponName string, slot string) error {
 	switch strings.ToLower(strings.TrimSpace(slot)) {
 	case MainHandSlot:
+		if character.MainHand != "" {
+			return fmt.Errorf("main hand already occupied")
+		}
 		character.MainHand = weaponName
 	case OffHandSlot:
+		if character.OffHand != "" {
+			return fmt.Errorf("off hand already occupied")
+		}
 		character.OffHand = weaponName
 	default:
 		return fmt.Errorf("slot must be %q or %q", MainHandSlot, OffHandSlot)
