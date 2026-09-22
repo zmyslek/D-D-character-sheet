@@ -265,22 +265,24 @@ func splitValues(values string) []string {
 }
 
 func addSkillProficiencies(existing, options []string, choiceCount int) []string {
-	seen := make(map[string]bool, len(existing)+choiceCount)
 	result := make([]string, 0, len(existing)+choiceCount)
 	for _, skill := range existing {
 		normalized := strings.ToLower(strings.TrimSpace(skill))
-		if normalized != "" && !seen[normalized] {
-			seen[normalized] = true
+		if normalized != "" {
 			result = append(result, normalized)
 		}
 	}
+	selected := 0
 	for _, option := range options {
 		normalized := strings.ToLower(strings.TrimSpace(option))
-		if len(result) >= len(existing)+choiceCount || normalized == "" || seen[normalized] {
+		if selected >= choiceCount {
+			break
+		}
+		if normalized == "" {
 			continue
 		}
-		seen[normalized] = true
 		result = append(result, normalized)
+		selected++
 	}
 	return result
 }
