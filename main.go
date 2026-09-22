@@ -43,8 +43,8 @@ func main() {
 		className := createCmd.String("class", "", "character class")
 		background := createCmd.String("background", "acolyte", "character background")
 		skills := createCmd.String("skills", "", "comma-separated skill proficiencies")
-		level := createCmd.Int("level", 0, "character level")
-		strength := createCmd.Int("str", 0, "strength")
+		level := createCmd.Int("level", 1, "character level")
+		strength := createCmd.Int("str", 10, "strength")
 		dexterity := createCmd.Int("dex", 0, "dexterity")
 		constitution := createCmd.Int("con", 0, "constitution")
 		intelligence := createCmd.Int("int", 0, "intelligence")
@@ -91,18 +91,6 @@ func main() {
 				return
 			}
 		}
-
-		raceRepository := characterinfrastructure.NewCSVRaceRepository("csvs/Races.csv")
-		selectedRace, err := raceRepository.GetByName(character.Race)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		character.SkillProficiencies = addSkillProficiencies(
-			character.SkillProficiencies,
-			selectedRace.SkillOptions,
-			selectedRace.SkillChoiceCount,
-		)
 
 		classRepository := characterinfrastructure.NewCSVClassRepository("csvs/Classes.csv")
 		class, err := classRepository.GetByName(character.Class)
