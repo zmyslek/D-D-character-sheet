@@ -336,11 +336,10 @@ func printCharacter(character *characterdomain.Character) {
 			levels = append(levels, level)
 		}
 		sort.Ints(levels)
-		fmt.Print("Spell slots:")
+		fmt.Println("Spell slots:")
 		for _, level := range levels {
-			fmt.Printf("  Level %d: %d", level, slots[level])
+			fmt.Printf("  Level %d: %d\n", level, slots[level])
 		}
-		fmt.Println()
 	}
 	if character.MainHand != "" {
 		fmt.Printf("Main hand: %s\n", strings.ToLower(character.MainHand))
