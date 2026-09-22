@@ -14,9 +14,12 @@ import (
 	characterdomain "mpp-zmyslek/character/character_domain"
 )
 
+// assets contains the templates and styles shipped inside the server binary.
+//
 //go:embed templates/*.html static/*.css
 var assets embed.FS
 
+// Server coordinates HTTP routes, template rendering, persistence, and API calls.
 type Server struct {
 	repository characterdomain.CharacterRepository
 	templates  *template.Template
@@ -25,6 +28,7 @@ type Server struct {
 	lastAPIHit time.Time
 }
 
+// characterView combines a character with values calculated for its web sheet.
 type characterView struct {
 	*characterdomain.Character
 	ProficiencyBonus int
@@ -36,6 +40,7 @@ type characterView struct {
 	SpellAttack      int
 }
 
+// NewServer parses embedded templates and creates an HTTP server backed by repository.
 func NewServer(repository characterdomain.CharacterRepository) (*Server, error) {
 	templates, err := template.New("pages").Funcs(template.FuncMap{
 		"abilityModifier": characterdomain.AbilityModifier,
@@ -52,6 +57,8 @@ func NewServer(repository characterdomain.CharacterRepository) (*Server, error) 
 	}, nil
 }
 
+// Handler returns the router containing the web pages and JSON endpoints.
+// Handler returns the router containing the web pages and JSON endpoints.
 func (server *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/static/", server.static)
@@ -64,6 +71,8 @@ func (server *Server) Handler() http.Handler {
 	return mux
 }
 
+// index renders the list of saved characters and rejects non-root paths.
+// index renders the list of saved characters and rejects non-root paths.
 func (server *Server) index(response http.ResponseWriter, request *http.Request) {
 	if request.URL.Path != "/" {
 		http.NotFound(response, request)
@@ -77,6 +86,8 @@ func (server *Server) index(response http.ResponseWriter, request *http.Request)
 	server.render(response, "index.html", characters)
 }
 
+// characterPage loads one character from the URL and renders its calculated sheet.
+// characterPage loads one character from the URL and renders its calculated sheet.
 func (server *Server) characterPage(response http.ResponseWriter, request *http.Request) {
 	name, err := url.PathUnescape(strings.TrimPrefix(request.URL.Path, "/characters/"))
 	if err != nil || name == "" {
@@ -91,6 +102,8 @@ func (server *Server) characterPage(response http.ResponseWriter, request *http.
 	server.render(response, "character.html", makeCharacterView(character))
 }
 
+// newCharacter renders the creation form or persists a submitted character.
+// newCharacter renders the creation form or persists a submitted character.
 func (server *Server) newCharacter(response http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
 		server.render(response, "create.html", nil)
@@ -117,6 +130,8 @@ func (server *Server) newCharacter(response http.ResponseWriter, request *http.R
 	http.Redirect(response, request, "/characters/"+url.PathEscape(character.Name), http.StatusSeeOther)
 }
 
+// charactersAPI serves character reads and validates character creation requests.
+// charactersAPI serves character reads and validates character creation requests.
 func (server *Server) charactersAPI(response http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
 		characters, err := server.repository.GetAll()
@@ -148,14 +163,20 @@ func (server *Server) charactersAPI(response http.ResponseWriter, request *http.
 	writeJSONStatus(response, character, http.StatusCreated)
 }
 
+// spellAPI enriches a spell name through the shared external-resource handler.
+// spellAPI enriches a spell name through the shared external-resource handler.
 func (server *Server) spellAPI(response http.ResponseWriter, request *http.Request) {
 	server.enrich(response, "spells", strings.TrimPrefix(request.URL.Path, "/api/spells/"))
 }
 
+// equipmentAPI enriches an equipment name through the shared external-resource handler.
+// equipmentAPI enriches an equipment name through the shared external-resource handler.
 func (server *Server) equipmentAPI(response http.ResponseWriter, request *http.Request) {
 	server.enrich(response, "equipment", strings.TrimPrefix(request.URL.Path, "/api/equipment/"))
 }
 
+// enrich queries the external D&D API while enforcing a minimum request interval.
+// enrich queries the external D&D API while enforcing a minimum request interval.
 func (server *Server) enrich(response http.ResponseWriter, resource, name string) {
 	if name == "" {
 		writeJSONError(response, fmt.Errorf("resource name is required"), http.StatusBadRequest)
@@ -163,7 +184,8 @@ func (server *Server) enrich(response http.ResponseWriter, resource, name string
 	}
 	server.rateMu.Lock()
 	if wait := 200*time.Millisecond - time.Since(server.lastAPIHit); wait > 0 {
-		time.Sleep(wait)
+		timer := time.NewTimer(wait)
+		<-timer.C
 	}
 	server.lastAPIHit = time.Now()
 	server.rateMu.Unlock()
@@ -192,10 +214,14 @@ func (server *Server) enrich(response http.ResponseWriter, resource, name string
 	writeJSON(response, map[string]any{"name": raw["name"], "resource": resource, "data": raw})
 }
 
+// static serves CSS files from the embedded filesystem.
+// static serves CSS files from the embedded filesystem.
 func (server *Server) static(response http.ResponseWriter, request *http.Request) {
 	http.FileServer(http.FS(assets)).ServeHTTP(response, request)
 }
 
+// render executes a named embedded template and reports rendering failures as HTTP errors.
+// render executes a named embedded template and reports rendering failures as HTTP errors.
 func (server *Server) render(response http.ResponseWriter, name string, data any) {
 	response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := server.templates.ExecuteTemplate(response, name, data); err != nil {
@@ -203,25 +229,35 @@ func (server *Server) render(response http.ResponseWriter, name string, data any
 	}
 }
 
+// makeCharacterView calculates the derived statistics displayed by the character page.
+// makeCharacterView calculates the derived statistics displayed by the character page.
 func makeCharacterView(character *characterdomain.Character) characterView {
 	ability, score := character.SpellcastingAbility()
 	return characterView{Character: character, ProficiencyBonus: characterdomain.ProficiencyBonus(character.Level), ArmorClass: character.ArmorClass(), Initiative: characterdomain.AbilityModifier(character.Dex), PassiveWisdom: 10 + characterdomain.AbilityModifier(character.Wis), SpellAbility: ability, SpellSaveDC: 8 + characterdomain.ProficiencyBonus(character.Level) + characterdomain.AbilityModifier(score), SpellAttack: characterdomain.ProficiencyBonus(character.Level) + characterdomain.AbilityModifier(score)}
 }
 
+// writeJSON writes a successful JSON response with HTTP 200 status.
+// writeJSON writes a successful JSON response with HTTP 200 status.
 func writeJSON(response http.ResponseWriter, value any) {
 	writeJSONStatus(response, value, http.StatusOK)
 }
 
+// writeJSONStatus writes a JSON response with an explicit HTTP status code.
+// writeJSONStatus writes a JSON response with an explicit HTTP status code.
 func writeJSONStatus(response http.ResponseWriter, value any, status int) {
 	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(status)
 	_ = json.NewEncoder(response).Encode(value)
 }
 
+// writeJSONError formats an error as a JSON object for API clients.
+// writeJSONError formats an error as a JSON object for API clients.
 func writeJSONError(response http.ResponseWriter, err error, status int) {
 	writeJSONStatus(response, map[string]string{"error": err.Error()}, status)
 }
 
+// characterFromForm validates form fields and converts them into a domain character.
+// characterFromForm validates form fields and converts them into a domain character.
 func characterFromForm(request *http.Request) (*characterdomain.Character, error) {
 	parse := func(field string) (int, error) {
 		var value int

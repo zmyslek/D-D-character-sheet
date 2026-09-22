@@ -4,19 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	// JSONCharacterRepository stores characters in a JSON file on disk.
 	"os"
 
 	characterdomain "mpp-zmyslek/character/character_domain"
-	// NewJSONCharacterRepository creates a repository that uses filePath for storage.
 )
 
+// JSONCharacterRepository stores characters in a JSON file on disk.
 type JSONCharacterRepository struct {
 	filePath string
-	// GetAll loads every character from the JSON file.
 }
 
+// NewJSONCharacterRepository creates a repository that uses filePath for storage.
 func NewJSONCharacterRepository(filePath string) *JSONCharacterRepository {
 	return &JSONCharacterRepository{filePath: filePath}
 }
@@ -34,7 +32,6 @@ func (r *JSONCharacterRepository) GetAll() ([]*characterdomain.Character, error)
 	var characters []*characterdomain.Character
 	if err := json.NewDecoder(file).Decode(&characters); err != nil {
 		return nil, fmt.Errorf("failed to decode JSON: %w", err)
-		// GetByName searches the stored characters and returns the matching character.
 	}
 
 	return characters, nil
@@ -50,7 +47,6 @@ func (r *JSONCharacterRepository) GetByName(name string) (*characterdomain.Chara
 		if character.Name == name {
 			return character, nil
 		}
-		// Create appends a character and writes the complete collection back to disk.
 	}
 
 	return nil, fmt.Errorf("character %q not found", name)
@@ -85,7 +81,6 @@ func (r *JSONCharacterRepository) Update(character *characterdomain.Character) e
 			characters[index] = character
 			return r.writeAll(characters)
 		}
-		// Delete removes the character with the requested name from the collection.
 	}
 
 	return errors.New("character not found")
@@ -102,12 +97,12 @@ func (r *JSONCharacterRepository) Delete(name string) error {
 			characters = append(characters[:index], characters[index+1:]...)
 			return r.writeAll(characters)
 		}
-		// writeAll centralizes JSON serialization for update and delete operations.
 	}
 
 	return errors.New("character not found")
 }
 
+// writeAll serializes the complete character collection to the repository file.
 func (r *JSONCharacterRepository) writeAll(characters []*characterdomain.Character) error {
 	file, err := os.Create(r.filePath)
 	if err != nil {

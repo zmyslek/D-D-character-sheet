@@ -7,6 +7,10 @@ From this directory, run `go run . serve` and open `http://localhost:8080`. The 
 
 The command-line interface remains available through `go run . list`, `go run . create ...`, and the other commands shown by `go run .`. Run the test suite with `go test ./...`.
 
+### Code comments and data files
+
+The Go source files and HTML/CSS assets contain comments explaining their main responsibilities, functions, variables, and UI sections. The CSV and JSON files are data sources, so comments are not inserted into them because that would change the parsed data or make JSON invalid.
+
 ## Dungeons and dragons?
 (Feel free to skip this part if you've ever played D&D, Pathfinder, Baldur's Gate, Neverwinter Nights, Star Wars: Knights of the Old Republic, or any other D&D inspired (video) game).
 

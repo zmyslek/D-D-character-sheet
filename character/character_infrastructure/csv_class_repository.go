@@ -8,12 +8,16 @@ import (
 	"strings"
 )
 
+// Class describes class skill choices loaded from the CSV data source.
+// Class describes class skill choices loaded from the CSV data source.
 type Class struct {
 	Name             string
 	SkillOptions     []string
 	SkillChoiceCount int
 }
 
+// CSVClassRepository reads class definitions from a CSV file.
+// CSVClassRepository reads class definitions from a CSV file.
 type CSVClassRepository struct {
 	filePath string
 }
@@ -22,6 +26,8 @@ func NewCSVClassRepository(filePath string) *CSVClassRepository {
 	return &CSVClassRepository{filePath: filePath}
 }
 
+// GetByName finds a class by name and parses its available skill choices.
+// GetByName finds a class by name and parses its available skill choices.
 func (repository *CSVClassRepository) GetByName(name string) (*Class, error) {
 	file, err := os.Open(repository.filePath)
 	if err != nil {
@@ -60,6 +66,8 @@ func (repository *CSVClassRepository) GetByName(name string) (*Class, error) {
 	return nil, fmt.Errorf("class %q not found", name)
 }
 
+// splitOptions converts the semicolon-separated CSV skill list into normalized names.
+// splitOptions converts the semicolon-separated CSV skill list into normalized names.
 func splitOptions(value string) []string {
 	if strings.TrimSpace(value) == "" {
 		return nil

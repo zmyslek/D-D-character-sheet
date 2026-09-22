@@ -309,6 +309,7 @@ func splitValues(values string) []string {
 	return result
 }
 
+// addSkillProficiencies normalizes existing skills and selects the first requested options.
 func addSkillProficiencies(existing, options []string, choiceCount int) []string {
 	result := make([]string, 0, len(existing)+choiceCount)
 	for _, skill := range existing {
@@ -332,6 +333,7 @@ func addSkillProficiencies(existing, options []string, choiceCount int) []string
 	return result
 }
 
+// addBackgroundSkills adds the fixed skill proficiencies for a known background.
 func addBackgroundSkills(existing []string, background string) []string {
 	backgroundSkills := map[string][]string{
 		"acolyte": {"insight", "religion"},
@@ -339,6 +341,7 @@ func addBackgroundSkills(existing []string, background string) []string {
 	return addSkillProficiencies(existing, backgroundSkills[strings.ToLower(strings.TrimSpace(background))], 2)
 }
 
+// printCharacter formats a character and its calculated combat information for the CLI.
 func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("Name: %s\n", character.Name)
 	fmt.Printf("Class: %s\n", strings.ToLower(character.Class))
@@ -389,6 +392,7 @@ func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("Passive perception: %d\n", 10+characterdomain.AbilityModifier(character.Wis))
 }
 
+// learnOrPrepareSpell validates spellcasting rules and stores the selected spell.
 func learnOrPrepareSpell(name, spellName string, prepare bool) {
 	if name == "" || spellName == "" {
 		fmt.Println("name and spell are required")
@@ -455,6 +459,7 @@ func learnOrPrepareSpell(name, spellName string, prepare bool) {
 	fmt.Printf("Learned spell %s\n", strings.ToLower(spell.Name))
 }
 
+// formatModifier renders a numeric modifier with an explicit plus or minus sign.
 func formatModifier(modifier int) string {
 	return fmt.Sprintf("%+d", modifier)
 }

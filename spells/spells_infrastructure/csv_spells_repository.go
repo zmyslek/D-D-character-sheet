@@ -10,12 +10,16 @@ import (
 	spellsdomain "mpp-zmyslek/spells/spells_domain"
 )
 
+// CSVSpellsRepository reads spell definitions from a CSV file.
+// CSVSpellsRepository reads spell definitions from a CSV file.
 type CSVSpellsRepository struct{ filePath string }
 
 func NewCSVSpellsRepository(filePath string) *CSVSpellsRepository {
 	return &CSVSpellsRepository{filePath: filePath}
 }
 
+// GetByName finds a spell and parses its level and allowed classes.
+// GetByName finds a spell and parses its level and allowed classes.
 func (repository *CSVSpellsRepository) GetByName(name string) (*spellsdomain.Spell, error) {
 	file, err := os.Open(repository.filePath)
 	if err != nil {

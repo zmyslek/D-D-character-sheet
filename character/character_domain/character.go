@@ -7,24 +7,31 @@ import (
 )
 
 const (
+	// MainHandSlot identifies the character's primary weapon slot.
 	MainHandSlot = "main hand"
-	OffHandSlot  = "off hand"
+	// OffHandSlot identifies the character's secondary weapon slot.
+	OffHandSlot = "off hand"
 )
 
+// Character contains the persistent data and calculated inputs for one player character.
 type Character struct {
-	// Character contains the information needed to represent a player character.
-	Name               string
-	Race               string
-	Class              string
-	Level              int
+	// Name is the unique display and lookup identifier for the character.
+	Name string
+	// Race and Class describe the character's selected D&D options.
+	Race  string
+	Class string
+	// Level controls proficiency, spell slots, and other level-dependent rules.
+	Level int
+	// Background and SkillProficiencies describe the character's non-combat training.
 	Background         string
 	SkillProficiencies []string
-	MainHand           string
-	OffHand            string
-	Armor              string
-	Shield             string
-	KnownSpells        []string `json:",omitempty"`
-	PreparedSpells     []string `json:",omitempty"`
+	// Equipment fields store only the currently equipped items.
+	MainHand       string
+	OffHand        string
+	Armor          string
+	Shield         string
+	KnownSpells    []string `json:",omitempty"`
+	PreparedSpells []string `json:",omitempty"`
 	// Height      float64
 	// Weight      float64
 	// Eyes        string
@@ -45,6 +52,7 @@ type Character struct {
 	Cha int // charisma
 }
 
+// CanCastSpells reports whether the character's class and level grant spellcasting.
 func (character *Character) CanCastSpells() bool {
 	className := strings.ToLower(strings.TrimSpace(character.Class))
 	switch className {
@@ -57,6 +65,7 @@ func (character *Character) CanCastSpells() bool {
 	}
 }
 
+// IsPreparedCaster reports whether the class prepares spells rather than learning them.
 func (character *Character) IsPreparedCaster() bool {
 	switch strings.ToLower(strings.TrimSpace(character.Class)) {
 	case "cleric", "druid", "paladin", "wizard":
@@ -66,6 +75,7 @@ func (character *Character) IsPreparedCaster() bool {
 	}
 }
 
+// SpellSlots returns spell slots by spell level, using level zero for cantrips.
 func (character *Character) SpellSlots() map[int]int {
 	level := character.Level
 	if level < 1 {
@@ -98,6 +108,7 @@ func (character *Character) SpellSlots() map[int]int {
 	if className == "paladin" || className == "ranger" {
 		casterLevel = (level + 1) / 2
 	}
+	// Each inner slice contains the number of slots for spell levels 1 through 9.
 	fullCasterSlots := [][]int{
 		{}, {2}, {3}, {4}, {4, 2}, {4, 3}, {4, 3, 2}, {4, 3, 3, 1}, {4, 3, 3, 2},
 		{4, 3, 3, 3, 1}, {4, 3, 3, 3, 2}, {4, 3, 3, 3, 2, 1}, {4, 3, 3, 3, 2, 1, 1},
@@ -118,6 +129,7 @@ func (character *Character) SpellSlots() map[int]int {
 	return slots
 }
 
+// CantripCount returns the number of cantrips available to the character's class and level.
 func (character *Character) CantripCount() int {
 	level := character.Level
 	className := strings.ToLower(strings.TrimSpace(character.Class))
@@ -151,6 +163,7 @@ func (character *Character) CantripCount() int {
 	return 3
 }
 
+// ArmorClass calculates armor class from armor, Dexterity, class features, and a shield.
 func (character *Character) ArmorClass() int {
 	dexterity := AbilityModifier(character.Dex)
 	armor := strings.ToLower(strings.TrimSpace(character.Armor))
@@ -192,6 +205,7 @@ func (character *Character) ArmorClass() int {
 	return armorClass
 }
 
+// SpellcastingAbility returns the governing ability name and score for the character's class.
 func (character *Character) SpellcastingAbility() (string, int) {
 	abilities := map[string]struct {
 		name  string
@@ -209,6 +223,7 @@ func (character *Character) SpellcastingAbility() (string, int) {
 	return ability.name, ability.score
 }
 
+// min returns the smaller of two ability-derived values.
 func min(first, second int) int {
 	if first < second {
 		return first

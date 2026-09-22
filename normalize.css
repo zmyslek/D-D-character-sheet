@@ -1,3 +1,4 @@
+/* Browser normalization keeps the standalone sheet consistent across browsers. */
 button,
 hr,
 input {
