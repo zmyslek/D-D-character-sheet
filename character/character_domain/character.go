@@ -46,9 +46,12 @@ type Character struct {
 }
 
 func (character *Character) CanCastSpells() bool {
-	switch strings.ToLower(strings.TrimSpace(character.Class)) {
-	case "bard", "cleric", "druid", "paladin", "ranger", "sorcerer", "warlock", "wizard":
+	className := strings.ToLower(strings.TrimSpace(character.Class))
+	switch className {
+	case "bard", "cleric", "druid", "sorcerer", "warlock", "wizard":
 		return true
+	case "paladin", "ranger":
+		return character.Level >= 2
 	default:
 		return false
 	}
@@ -164,7 +167,7 @@ func (character *Character) ArmorClass() int {
 		armorClass = 13 + min(dexterity, 2)
 	case "scale mail", "breastplate":
 		armorClass = 14 + min(dexterity, 2)
-	case "half plate armor":
+	case "half plate", "half plate armor":
 		armorClass = 15 + min(dexterity, 2)
 	case "ring mail":
 		armorClass = 14

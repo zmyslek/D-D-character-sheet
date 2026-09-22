@@ -357,7 +357,7 @@ func printCharacter(character *characterdomain.Character) {
 		fmt.Printf("Spell attack bonus: %s\n", formatModifier(characterdomain.ProficiencyBonus(character.Level)+characterdomain.AbilityModifier(score)))
 	}
 	fmt.Printf("Armor class: %d\n", character.ArmorClass())
-	fmt.Printf("Initiative bonus: %s\n", formatModifier(characterdomain.AbilityModifier(character.Dex)))
+	fmt.Printf("Initiative bonus: %d\n", characterdomain.AbilityModifier(character.Dex))
 	fmt.Printf("Passive perception: %d\n", 10+characterdomain.AbilityModifier(character.Wis))
 }
 
