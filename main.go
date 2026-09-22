@@ -8,8 +8,6 @@ import (
 
 	characterdomain "mpp-zmyslek/character/character_domain"
 	characterinfrastructure "mpp-zmyslek/character/character_infrastructure"
-	classdomain "mpp-zmyslek/class/class_domain"
-	racedomain "mpp-zmyslek/race/race_domain"
 )
 
 // usage prints the commands currently supported by the command-line interface.
