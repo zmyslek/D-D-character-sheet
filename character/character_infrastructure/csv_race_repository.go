@@ -34,7 +34,7 @@ func (repository *CSVRaceRepository) GetByName(name string) (*Race, error) {
 		return nil, fmt.Errorf("failed to read race file: %w", err)
 	}
 
-	normalizedName := strings.ToLower(strings.TrimSpace(name))
+	normalizedName := normalizeRaceName(name)
 	for index, row := range rows {
 		if index == 0 {
 			continue
@@ -42,7 +42,7 @@ func (repository *CSVRaceRepository) GetByName(name string) (*Race, error) {
 		if len(row) < 10 {
 			return nil, fmt.Errorf("invalid race row %d", index+1)
 		}
-		if strings.ToLower(strings.TrimSpace(row[0])) != normalizedName {
+		if normalizeRaceName(row[0]) != normalizedName {
 			continue
 		}
 
@@ -58,4 +58,8 @@ func (repository *CSVRaceRepository) GetByName(name string) (*Race, error) {
 	}
 
 	return nil, fmt.Errorf("race %q not found", name)
+}
+
+func normalizeRaceName(name string) string {
+	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), " ", "-")
 }

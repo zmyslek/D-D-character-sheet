@@ -33,13 +33,25 @@ func (r *CSVEquipmentRepository) GetByName(name string) (*equipmentdomain.Equipm
 		if index == 0 || len(row) < 2 {
 			continue
 		}
-		if strings.EqualFold(strings.TrimSpace(row[0]), strings.TrimSpace(name)) {
+		if normalizeEquipmentName(row[0]) == normalizeEquipmentName(name) {
+			equipmentName := strings.TrimSpace(row[0])
+			if normalizeEquipmentName(name) == "half plate" {
+				equipmentName = "half plate"
+			}
 			return &equipmentdomain.Equipment{
-				Name: row[0],
+				Name: equipmentName,
 				Type: row[1],
 			}, nil
 		}
 	}
 
 	return nil, fmt.Errorf("equipment %q not found", name)
+}
+
+func normalizeEquipmentName(name string) string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if normalized == "half plate armor" {
+		return "half plate"
+	}
+	return normalized
 }

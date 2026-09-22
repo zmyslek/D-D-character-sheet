@@ -33,7 +33,7 @@ func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]RaceAbilit
 		return nil, fmt.Errorf("failed to read race ability file: %w", err)
 	}
 
-	normalizedRace := strings.ToLower(strings.TrimSpace(race))
+	normalizedRace := normalizeRaceName(race)
 	bonuses := make([]RaceAbilityBonus, 0)
 	for index, row := range rows {
 		if index == 0 {
@@ -42,7 +42,7 @@ func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]RaceAbilit
 		if len(row) < 3 {
 			return nil, fmt.Errorf("invalid race ability row %d", index+1)
 		}
-		if strings.ToLower(strings.TrimSpace(row[0])) != normalizedRace {
+		if normalizeRaceName(row[0]) != normalizedRace {
 			continue
 		}
 
