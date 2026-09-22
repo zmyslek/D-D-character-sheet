@@ -65,8 +65,8 @@ func main() {
 		// Convert the parsed values into the domain object used by the repository.
 		character := &characterdomain.Character{
 			Name:               *name,
-			Race:               racedomain.Race{RaceName: *race},
-			Class:              classdomain.Class{ClassName: *className},
+			Race:               *race,
+			Class:              *className,
 			Level:              *level,
 			Background:         *background,
 			SkillProficiencies: splitValues(*skills),
@@ -159,8 +159,8 @@ func splitValues(values string) []string {
 
 func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("Name: %s\n", character.Name)
-	fmt.Printf("Class: %s\n", strings.ToLower(character.Class.ClassName))
-	fmt.Printf("Race: %s\n", strings.ToLower(character.Race.RaceName))
+	fmt.Printf("Class: %s\n", strings.ToLower(character.Class))
+	fmt.Printf("Race: %s\n", strings.ToLower(character.Race))
 	fmt.Printf("Background: %s\n", strings.ToLower(character.Background))
 	fmt.Printf("Level: %d\n", character.Level)
 	fmt.Println("Ability scores:")
