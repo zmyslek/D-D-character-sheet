@@ -88,7 +88,7 @@ func (character *Character) SpellSlots() map[int]int {
 		case level >= 2:
 			slots = 2
 		}
-		return map[int]int{slotLevel: slots}
+		return map[int]int{0: character.CantripCount(), slotLevel: slots}
 	}
 
 	casterLevel := level
