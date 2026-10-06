@@ -4,15 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="normalize.css">
-    <link rel="stylesheet" href="style.css">
-    <title>MPP Character Sheet</title>
+    <link rel="stylesheet" href="/normalize.css">
+    <link rel="stylesheet" href="/style.css">
+    <title>{{if .Editing}}Edit {{.Name}}{{else if .Name}}{{.Name}} · Character Sheet{{else}}Create Character{{end}}</title>
 </head>
 <body>
     <form class="charsheet">
   <header>
     <section class="charname">
-      <label for="charname">Character Name</label><input name="charname" placeholder="Xaden Riorson" />
+      <label for="charname">Character Name</label><input name="charname" placeholder="Xaden Riorson" {{if .Editing}}readonly{{end}} />
     </section>
     <section class="misc">
       <ul>
@@ -372,9 +372,15 @@
         </div>
       </section>
     </section>
-  </main>
+</main>
+  <div class="sheet-actions">
+    <a class="back-button" href="/">← Back to characters</a>
+    {{if .Editing}}<a href="/characters/{{pathEscape .Name}}">Cancel editing</a>{{else if .Name}}<a href="/characters/{{pathEscape .Name}}/edit">Edit character</a>{{end}}
+    <button type="button" id="save-character">{{if .Editing}}Save changes{{else}}Save character{{end}}</button>
+    <span id="save-status" role="status" aria-live="polite"></span>
+  </div>
 </form>
-  <script id="character-data" type="application/json">{{if .Name}}{{json .}}{{end}}</script>
+  <script id="character-data" type="application/json">{{json .}}</script>
 <script>
   const serverCharacterElement = document.getElementById('character-data');
   let serverCharacter = null;
@@ -386,24 +392,9 @@
     serverCharacter = null;
   }
   const character = serverCharacter || window.characterData || {
-  Name: 'Xaden Riorson',
-  Race: 'Human',
-  Class: 'Warlock',
-  Level: 10,
-  Background: 'Soldier',
-  SkillProficiencies: ['deception', 'intimidation', 'perception', 'stealth', 'survival'],
-  MainHand: 'Longsword',
-  OffHand: '',
-  Armor: 'Studded Leather Armor',
-  Shield: '',
-  KnownSpells: ['eldritch blast', 'darkness', 'shadow blade', 'misty step'],
-  PreparedSpells: [],
-  Str: 14,
-  Dex: 18,
-  Con: 16,
-  Int: 12,
-  Wis: 13,
-  Cha: 20
+  Name: '', Race: '', Class: '', Level: 1, Background: '', SkillProficiencies: [],
+  MainHand: '', OffHand: '', Armor: '', Shield: '', KnownSpells: [], PreparedSpells: [],
+  Str: 10, Dex: 10, Con: 10, Int: 10, Wis: 10, Cha: 10
 };
 const storageKey = `mpp-character-${character.Name}`;
 let hasSavedCharacter = Boolean(serverCharacter);
@@ -484,6 +475,7 @@ const setField = (name, value) => {
   const element = input(name);
   if (element && value !== undefined && value !== '') element.value = value;
 };
+const enrichmentCache = new Map();
 const listValue = value => Array.isArray(value)
   ? value.map(item => String(item).trim()).filter(Boolean)
   : String(value || '').split(',').map(item => item.trim()).filter(Boolean);
@@ -512,6 +504,103 @@ function renderSpells() {
     listValue(character.KnownSpells).length ? `Known spells: ${listValue(character.KnownSpells).join(', ')}` : '',
     listValue(character.PreparedSpells).length ? `Prepared spells: ${listValue(character.PreparedSpells).join(', ')}` : ''
   ].filter(Boolean).join('\n'));
+}
+
+function enrichmentOutput(name) {
+  const element = input(name);
+  if (!element) return null;
+  let output = element.nextElementSibling;
+  if (!output || output.dataset.enrichmentFor !== name) {
+    output = document.createElement('div');
+    output.dataset.enrichmentFor = name;
+    output.setAttribute('aria-live', 'polite');
+    output.style.cssText = 'font-size:0.8em; line-height:1.3; margin-top:0.25em;';
+    element.insertAdjacentElement('afterend', output);
+  }
+  return output;
+}
+
+function equipmentNames() {
+  const names = [];
+  for (const line of input('equipment')?.value.split('\n') || []) {
+    const match = line.match(/^\s*(armor|shield|weapon|main\s*hand|off\s*-?\s*hand)\s*:\s*(.*?)\s*$/i);
+    if (match?.[2]) names.push(match[2]);
+  }
+  for (const name of ['atkname1', 'atkname2']) {
+    const value = input(name)?.value.trim();
+    if (value && !names.includes(value)) names.push(value);
+  }
+  return names;
+}
+
+function spellNames() {
+  return [...listValue(character.KnownSpells), ...listValue(character.PreparedSpells)]
+    .filter((spell, index, spells) => spells.indexOf(spell) === index);
+}
+
+function formatEquipmentDetails(data) {
+  const details = [];
+  if (data.equipment_category?.name) details.push(data.equipment_category.name);
+  if (data.armor_class?.base !== undefined) {
+    details.push(`AC ${data.armor_class.base}${data.armor_class.dex_bonus ? ' + Dex' : ''}`);
+  }
+  if (data.weapon_range) details.push(`Range: ${data.weapon_range}`);
+  if (data.range?.normal !== undefined) details.push(`Normal range: ${data.range.normal} ft.`);
+  if (data.two_handed_damage) details.push('Two-handed');
+  return details.join(' | ');
+}
+
+function formatSpellDetails(data) {
+  const details = [];
+  if (data.school?.name) details.push(`School: ${data.school.name}`);
+  if (data.range) details.push(`Range: ${data.range}`);
+  return details.join(' | ');
+}
+
+async function enrichResource(resource, name) {
+  const key = `${resource}:${normalize(name)}`;
+  if (enrichmentCache.has(key)) return enrichmentCache.get(key);
+  const request = fetch(`/api/${resource}/${encodeURIComponent(name)}`, {
+    headers: { Accept: 'application/json' }
+  }).then(async response => {
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    return response.json();
+  });
+  enrichmentCache.set(key, request);
+  try {
+    return await request;
+  } catch (error) {
+    enrichmentCache.delete(key);
+    throw error;
+  }
+}
+
+async function enrichSheet() {
+  const output = enrichmentOutput('equipment');
+  const equipmentDetails = [];
+  for (const name of equipmentNames()) {
+    try {
+      const result = await enrichResource('equipment', name);
+      const details = formatEquipmentDetails(result.data || {});
+      if (details) equipmentDetails.push(`${result.name || name}: ${details}`);
+    } catch (_) {
+      // Unknown or empty equipment should not prevent other entries from loading.
+    }
+  }
+  if (output) output.textContent = equipmentDetails.join('\n');
+
+  const spellOutput = enrichmentOutput('spellcasting');
+  const spellDetails = [];
+  for (const name of spellNames()) {
+    try {
+      const result = await enrichResource('spells', name);
+      const details = formatSpellDetails(result.data || {});
+      if (details) spellDetails.push(`${result.name || name}: ${details}`);
+    } catch (_) {
+      // Unknown or empty spells should not prevent other entries from loading.
+    }
+  }
+  if (spellOutput) spellOutput.textContent = spellDetails.join('\n');
 }
 
 function readEquipment() {
@@ -670,13 +759,16 @@ input('equipment')?.addEventListener('change', readEquipment);
 input('atkname1')?.addEventListener('change', readEquipment);
 input('atkname2')?.addEventListener('change', readEquipment);
 input('spellcasting')?.addEventListener('change', readSpells);
-input('equipment')?.addEventListener('input', readEquipment);
-input('spellcasting')?.addEventListener('input', readSpells);
+input('equipment')?.addEventListener('change', enrichSheet);
+input('atkname1')?.addEventListener('change', enrichSheet);
+input('atkname2')?.addEventListener('change', enrichSheet);
+input('spellcasting')?.addEventListener('change', enrichSheet);
 if (hasSavedCharacter) {
   renderEquipment();
   renderSpells();
   recalculate();
 }
+enrichSheet();
 
 async function showCharacterBrowser() {
   if (document.getElementById('character-browser')) return;
@@ -710,6 +802,45 @@ async function showCharacterBrowser() {
 }
 
 showCharacterBrowser();
+
+document.getElementById('save-character')?.addEventListener('click', async () => {
+  const status = document.getElementById('save-status');
+  const name = input('charname')?.value.trim() || '';
+  const classLevel = input('classlevel')?.value.trim().match(/^(.*?)\s+(\d+)$/);
+  if (!name || !input('race')?.value.trim() || !classLevel) {
+    if (status) status.textContent = 'Enter a character name, race, and class with level (for example, Wizard 1).';
+    return;
+  }
+  character.Name = name;
+  character.Race = input('race').value.trim();
+  character.Class = classLevel[1].trim();
+  character.Level = Number(classLevel[2]);
+  character.Background = input('background')?.value.trim() || '';
+  character.Str = Number(input('Strengthscore')?.value || 10);
+  character.Dex = Number(input('Dexterityscore')?.value || 10);
+  character.Con = Number(input('Constitutionscore')?.value || 10);
+  character.Int = Number(input('Intelligencescore')?.value || 10);
+  character.Wis = Number(input('Wisdomscore')?.value || 10);
+  character.Cha = Number(input('Charismascore')?.value || 10);
+  character.SkillProficiencies = Object.keys(skillAbilities)
+    .filter(skill => input(skill + '-prof')?.checked)
+    .map(skill => skill.toLowerCase());
+  readEquipment();
+  readSpells();
+  if (status) status.textContent = 'Saving…';
+  try {
+    const response = await fetch('/api/characters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(character)
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || ('Save failed (' + response.status + ')'));
+    window.location.assign('/characters/' + encodeURIComponent(character.Name));
+  } catch (error) {
+    if (status) status.textContent = error.message || 'Could not save character.';
+  }
+});
 </script>
 </body>
 </html>

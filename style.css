@@ -38,6 +38,43 @@ form.charsheet {
   margin-left: auto;
   margin-top: 10px;
 }
+
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  width: min(800px, calc(100% - 24px));
+  margin: 16px auto 28px;
+  font: 14px system-ui, sans-serif;
+}
+
+.sheet-actions a {
+  color: #51402f;
+}
+
+.sheet-actions a.back-button {
+  padding: 9px 14px;
+  border: 1px solid #b8afa2;
+  border-radius: 8px;
+  background: #fffefa;
+  text-decoration: none;
+}
+
+.sheet-actions button {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #6e4524;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#save-status {
+  color: #51402f;
+}
 form.charsheet div.textblock {
   display: flex;
   flex-direction: column-reverse;

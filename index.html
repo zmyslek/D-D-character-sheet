@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/normalize.css">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/static/pages.css">
+    <title>Characters</title>
+</head>
+<body>
+    <main class="index">
+      <header>
+        <h1>Characters</h1>
+        <span class="count">{{len .}} saved</span>
+        <a class="button" href="/characters/new">+ New character</a>
+      </header>
+
+      {{if .}}
+      <ul class="cards">
+        {{range .}}
+        <li>
+          <a class="card" href="/characters/{{pathEscape .Name}}">
+            <span class="name">{{.Name}}</span>
+            <span class="sub">{{.Race}} {{.Class}} &middot; Level {{.Level}}</span>
+            <span class="card-equipment">
+              {{if .Armor}}{{.Armor}}{{end}}{{if .Shield}}{{if .Armor}} &middot; {{end}}{{.Shield}}{{end}}{{if .MainHand}}{{if or .Armor .Shield}} &middot; {{end}}{{.MainHand}}{{end}}{{if .OffHand}}{{if or .Armor .Shield .MainHand}} &middot; {{end}}{{.OffHand}}{{end}}
+              {{if not (or .Armor .Shield .MainHand .OffHand)}}No equipment recorded{{end}}
+            </span>
+            <span class="stats">
+              <span class="stat"><b>Str</b><span>{{.Str}}</span></span>
+              <span class="stat"><b>Dex</b><span>{{.Dex}}</span></span>
+              <span class="stat"><b>Con</b><span>{{.Con}}</span></span>
+              <span class="stat"><b>Int</b><span>{{.Int}}</span></span>
+              <span class="stat"><b>Wis</b><span>{{.Wis}}</span></span>
+              <span class="stat"><b>Cha</b><span>{{.Cha}}</span></span>
+            </span>
+          </a>
+          <div class="card-actions">
+            <a href="/characters/{{pathEscape .Name}}/edit">Edit</a>
+            <form action="/characters/{{pathEscape .Name}}/delete" method="post" onsubmit="return confirm('Delete {{.Name}}? This cannot be undone.')">
+              <button type="submit">Delete</button>
+            </form>
+          </div>
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <p class="empty">No characters yet. <a href="/characters/new">Create the first one.</a></p>
+      {{end}}
+    </main>
+</body>
+</html>
