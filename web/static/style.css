@@ -1,4 +1,5 @@
 
+/* Utility classes and controls shared by the standalone character sheet. */
 .red {
   background: red;
 }
@@ -75,6 +76,7 @@ form.charsheet {
 #save-status {
   color: #51402f;
 }
+/* Shared sheet typography and the two-part identity header. */
 form.charsheet div.textblock {
   display: flex;
   flex-direction: column-reverse;
@@ -165,6 +167,7 @@ form.charsheet header section.misc ul li input {
   border: 0;
   border-bottom: 1px solid #ddd;
 }
+/* Main sheet columns, ability scores, saving throws, and skill rows. */
 form.charsheet main {
   display: flex;
   justify-content: space-between;
@@ -338,6 +341,7 @@ form.charsheet main > section div.passive-perception input {
 form.charsheet main > section div.otherprofs textarea {
   height: 26em;
 }
+/* Combat panels contain armor class, hit points, hit dice, and death saves. */
 form.charsheet main section.combat {
   background-color: #eee;
   display: flex;
@@ -537,6 +541,7 @@ form.charsheet main section.combat > div.deathsaves > div div.bubbles input[type
 form.charsheet main section.combat > div.deathsaves > div div.bubbles input[type=checkbox]:checked {
   background-color: black;
 }
+/* Attack rows and spellcasting text share a ruled table-like panel. */
 form.charsheet main section.attacksandspellcasting {
   border: 1px solid black;
   border-radius: 10px;
@@ -568,6 +573,7 @@ form.charsheet main section.attacksandspellcasting > div > table input {
 form.charsheet main section.attacksandspellcasting > div textarea {
   border: 0;
 }
+/* Equipment and currency fields use the middle sheet column. */
 form.charsheet main section.equipment {
   border: 1px solid black;
   border-radius: 10px;
@@ -615,6 +621,7 @@ form.charsheet main section.equipment > div > textarea {
   flex: 1;
   border: 0;
 }
+/* Personality notes and features occupy the lower sheet sections. */
 form.charsheet main section.flavor {
   padding: 10px;
   background: #bbb;

@@ -40,6 +40,7 @@ func main() {
 	cmd := os.Args[1]
 
 	switch cmd {
+	// Start the HTTP application with the same JSON repository used by the CLI.
 	case "serve":
 		serveCmd := flag.NewFlagSet("serve", flag.ContinueOnError)
 		address := serveCmd.String("addr", ":8080", "HTTP listen address")
@@ -57,6 +58,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	// Create validates base scores, applies race bonuses, and records class/background skills.
 	case "create":
 		createCmd := flag.NewFlagSet("create", flag.ContinueOnError)
 		// Named flags make character creation readable and allow names with spaces.
@@ -66,12 +68,12 @@ func main() {
 		background := createCmd.String("background", "acolyte", "character background")
 		skills := createCmd.String("skills", "", "comma-separated skill proficiencies")
 		level := createCmd.Int("level", 1, "character level")
-		strength := createCmd.Int("str", 10, "strength")
-		dexterity := createCmd.Int("dex", 0, "dexterity")
-		constitution := createCmd.Int("con", 0, "constitution")
-		intelligence := createCmd.Int("int", 0, "intelligence")
-		wisdom := createCmd.Int("wis", 0, "wisdom")
-		charisma := createCmd.Int("cha", 0, "charisma")
+		strength := createCmd.Int("str", 15, "strength")
+		dexterity := createCmd.Int("dex", 14, "dexterity")
+		constitution := createCmd.Int("con", 13, "constitution")
+		intelligence := createCmd.Int("int", 12, "intelligence")
+		wisdom := createCmd.Int("wis", 10, "wisdom")
+		charisma := createCmd.Int("cha", 8, "charisma")
 		if err := createCmd.Parse(os.Args[2:]); err != nil {
 			return
 		}
@@ -99,6 +101,10 @@ func main() {
 			Int:                *intelligence,
 			Wis:                *wisdom,
 			Cha:                *charisma,
+		}
+		if !character.HasStandardArray() {
+			fmt.Println("ability scores must use the Standard Array once each: 15, 14, 13, 12, 10, 8")
+			return
 		}
 
 		raceAbilityRepository := characterinfrastructure.NewCSVRaceAbilityRepository("csvs/RaceAbilityBonuses.csv")
@@ -135,6 +141,7 @@ func main() {
 		}
 		fmt.Printf("saved character %s\n", character.Name)
 
+	// Load a single saved character and print its calculated sheet to the terminal.
 	case "view":
 		viewCmd := flag.NewFlagSet("view", flag.ContinueOnError)
 		name := viewCmd.String("name", "", "character name")
@@ -155,6 +162,7 @@ func main() {
 		}
 		printCharacter(character)
 
+	// List prints the saved characters' names and their core identity fields.
 	case "list":
 		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
 		characters, err := repository.GetAll()
@@ -166,6 +174,7 @@ func main() {
 			fmt.Printf("%s - %s %s (level %d)\n", character.Name, character.Race, character.Class, character.Level)
 		}
 
+	// Delete removes one character by its unique name.
 	case "delete":
 		deleteCmd := flag.NewFlagSet("delete", flag.ContinueOnError)
 		name := deleteCmd.String("name", "", "character name")
@@ -184,6 +193,7 @@ func main() {
 		}
 		fmt.Printf("deleted %s\n", *name)
 
+	// Equip validates one selected item and writes it into the matching character slot.
 	case "equip":
 		equipCmd := flag.NewFlagSet("equip", flag.ContinueOnError)
 		name := equipCmd.String("name", "", "character name")
@@ -270,6 +280,7 @@ func main() {
 			return
 		}
 
+	// Learn-spell and prepare-spell both validate class, level, and spell-list eligibility.
 	case "learn-spell":
 		spellCmd := flag.NewFlagSet("learn-spell", flag.ContinueOnError)
 		name := spellCmd.String("name", "", "character name")
@@ -294,6 +305,7 @@ func main() {
 	}
 }
 
+// splitValues turns a comma-separated CLI flag into normalized non-empty entries.
 func splitValues(values string) []string {
 	if values == "" {
 		return nil

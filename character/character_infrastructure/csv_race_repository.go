@@ -9,7 +9,6 @@ import (
 )
 
 // Race describes race skill choices loaded from the CSV data source.
-// Race describes race skill choices loaded from the CSV data source.
 type Race struct {
 	Name             string
 	SkillOptions     []string
@@ -17,16 +16,15 @@ type Race struct {
 }
 
 // CSVRaceRepository reads race definitions from a CSV file.
-// CSVRaceRepository reads race definitions from a CSV file.
 type CSVRaceRepository struct {
 	filePath string
 }
 
+// NewCSVRaceRepository configures race lookups to read from filePath.
 func NewCSVRaceRepository(filePath string) *CSVRaceRepository {
 	return &CSVRaceRepository{filePath: filePath}
 }
 
-// GetByName finds a race by name and parses its available skill choices.
 // GetByName finds a race by name and parses its available skill choices.
 func (repository *CSVRaceRepository) GetByName(name string) (*Race, error) {
 	file, err := os.Open(repository.filePath)
@@ -66,7 +64,6 @@ func (repository *CSVRaceRepository) GetByName(name string) (*Race, error) {
 	return nil, fmt.Errorf("race %q not found", name)
 }
 
-// normalizeRaceName makes race names comparable across spaces and hyphens.
 // normalizeRaceName makes race names comparable across spaces and hyphens.
 func normalizeRaceName(name string) string {
 	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), " ", "-")

@@ -1,5 +1,6 @@
 {{define "character.html"}}
 <!-- Displays stored character data and derived combat and spellcasting statistics. -->
+<!-- The page groups identity, proficiency, equipment, and combat totals into panels. -->
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{.Name}} · Party Ledger</title><link rel="stylesheet" href="/static/style.css"></head><body>
 <main class="shell"><nav><a href="/">← All characters</a></nav><header class="sheet-hero"><div><p class="eyebrow">{{.Race}} · {{.Class}}</p><h1>{{.Name}}</h1><p>Level {{.Level}} · {{.Background}}</p></div><span class="level-mark">{{.Level}}</span></header>
 <section class="stat-grid"><div><span>Armor class</span><strong>{{.ArmorClass}}</strong></div><div><span>Initiative</span><strong>{{printf "%+d" .Initiative}}</strong></div><div><span>Passive wisdom</span><strong>{{.PassiveWisdom}}</strong></div><div><span>Proficiency</span><strong>{{printf "+%d" .ProficiencyBonus}}</strong></div></section>

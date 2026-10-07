@@ -50,11 +50,13 @@ type sheetView struct {
 	FeaturesText    string
 }
 
+// abilityTable keeps ability display order and persisted property codes in one place.
 var abilityTable = []struct{ Name, Short string }{
 	{"Strength", "Str"}, {"Dexterity", "Dex"}, {"Constitution", "Con"},
 	{"Intelligence", "Int"}, {"Wisdom", "Wis"}, {"Charisma", "Cha"},
 }
 
+// skillTable maps each trained skill to the ability used in its modifier formula.
 var skillTable = []struct{ Name, Ability string }{
 	{"Acrobatics", "Dex"}, {"Animal Handling", "Wis"}, {"Arcana", "Int"},
 	{"Athletics", "Str"}, {"Deception", "Cha"}, {"History", "Int"},
@@ -66,6 +68,7 @@ var skillTable = []struct{ Name, Ability string }{
 
 // makeSheetView converts a character into the display model for view.html.
 func makeSheetView(character *characterdomain.Character) sheetView {
+	// Reuse server calculations so both web sheet layouts show consistent totals.
 	base := makeCharacterView(character)
 	proficiency := base.ProficiencyBonus
 
@@ -87,6 +90,7 @@ func makeSheetView(character *characterdomain.Character) sheetView {
 		view.Saves = append(view.Saves, saveRow{Name: ability.Name, Mod: modifier})
 	}
 
+	// Normalize saved proficiency names once, then use constant-time lookups per skill.
 	proficient := make(map[string]bool)
 	profNames := make([]string, 0, len(character.SkillProficiencies))
 	for _, skill := range character.SkillProficiencies {

@@ -9,10 +9,12 @@
   <title>New character</title>
 </head>
 <body>
+  <!-- This form gathers the character's identity, Standard Array placement, and skills. -->
   <main class="create-page">
     <nav class="pagenav"><a href="/">← All characters</a></nav>
     <header class="create-heading"><p class="eyebrow">Party ledger</p><h1>Create a character</h1><p>Fill in the basics to add a new adventurer.</p></header>
     <form class="create-form" action="/characters/new" method="post">
+      <!-- Identity fields are required to determine race and class rules. -->
       <section class="form-section">
         <h2>Character details</h2>
         <div class="form-grid">
@@ -23,6 +25,7 @@
           <label>Level<input name="level" type="number" min="1" max="20" value="1" required></label>
         </div>
       </section>
+      <!-- Assign each Standard Array score once; the server adds race increases on save. -->
       <section class="form-section">
         <h2>Ability scores</h2>
         <div class="score-inputs">
@@ -34,6 +37,7 @@
           <label>Charisma<input name="cha" type="number" min="1" max="30" value="10" required></label>
         </div>
       </section>
+      <!-- Skill checkboxes record the proficiencies selected for this character. -->
       <section class="form-section">
         <h2>Skill proficiencies</h2>
         <div class="skill-choices">

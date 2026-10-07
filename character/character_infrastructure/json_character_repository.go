@@ -19,6 +19,7 @@ func NewJSONCharacterRepository(filePath string) *JSONCharacterRepository {
 	return &JSONCharacterRepository{filePath: filePath}
 }
 
+// GetAll reads and decodes the complete character collection from the JSON file.
 func (r *JSONCharacterRepository) GetAll() ([]*characterdomain.Character, error) {
 	file, err := os.Open(r.filePath)
 	if err != nil {
@@ -37,6 +38,7 @@ func (r *JSONCharacterRepository) GetAll() ([]*characterdomain.Character, error)
 	return characters, nil
 }
 
+// GetByName returns the first exact-name match from the stored collection.
 func (r *JSONCharacterRepository) GetByName(name string) (*characterdomain.Character, error) {
 	characters, err := r.GetAll()
 	if err != nil {
@@ -52,6 +54,7 @@ func (r *JSONCharacterRepository) GetByName(name string) (*characterdomain.Chara
 	return nil, fmt.Errorf("character %q not found", name)
 }
 
+// Create inserts a new character or replaces the record with the same name.
 func (r *JSONCharacterRepository) Create(character *characterdomain.Character) error {
 	characters, err := r.GetAll()
 	if err != nil {
@@ -70,6 +73,7 @@ func (r *JSONCharacterRepository) Create(character *characterdomain.Character) e
 	return r.writeAll(append(characters, character))
 }
 
+// Update replaces an existing record and returns an error if its name is unknown.
 func (r *JSONCharacterRepository) Update(character *characterdomain.Character) error {
 	characters, err := r.GetAll()
 	if err != nil {
@@ -86,6 +90,7 @@ func (r *JSONCharacterRepository) Update(character *characterdomain.Character) e
 	return errors.New("character not found")
 }
 
+// Delete removes the named record and writes the shortened collection to disk.
 func (r *JSONCharacterRepository) Delete(name string) error {
 	characters, err := r.GetAll()
 	if err != nil {

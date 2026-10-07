@@ -1,5 +1,6 @@
 /* Styles for the index and view pages; the sheet itself uses style.css. */
 
+/* Navigation and primary buttons keep the roster and form actions consistent. */
 .pagenav,
 main.index {
   width: 800px;
@@ -62,6 +63,7 @@ main.index .button {
   background: white;
 }
 
+/* Character cards summarize each saved record and its six ability scores. */
 .cards {
   list-style: none;
   margin: 20px 0 0;
@@ -169,6 +171,7 @@ body {
   font-family: system-ui, sans-serif;
 }
 
+/* Creation form layout groups identity, ability scores, and skill choices. */
 .create-page {
   max-width: 800px;
   margin: 0 auto 48px;

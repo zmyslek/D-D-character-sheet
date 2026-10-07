@@ -9,7 +9,9 @@
     <title>{{if .Editing}}Edit {{.Name}}{{else if .Name}}{{.Name}} · Character Sheet{{else}}Create Character{{end}}</title>
 </head>
 <body>
+    <!-- The sheet form hosts editable character fields and the calculated reference boxes. -->
     <form class="charsheet">
+  <!-- Identity fields describe who the character is and their class level. -->
   <header>
     <section class="charname">
       <label for="charname">Character Name</label><input name="charname" placeholder="Xaden Riorson" {{if .Editing}}readonly{{end}} />
@@ -37,6 +39,7 @@
       </ul>
     </section>
   </header>
+  <!-- Ability scores, proficiencies, combat statistics, and equipment fill the sheet body. -->
   <main>
     <section>
       <section class="attributes">
@@ -396,6 +399,7 @@
   MainHand: '', OffHand: '', Armor: '', Shield: '', KnownSpells: [], PreparedSpells: [],
   Str: 10, Dex: 10, Con: 10, Int: 10, Wis: 10, Cha: 10
 };
+// Keep a per-character local draft so browser-only edits survive a refresh.
 const storageKey = `mpp-character-${character.Name}`;
 let hasSavedCharacter = Boolean(serverCharacter);
 try {
@@ -407,6 +411,7 @@ try {
 } catch (_) {
   // Ignore unavailable or malformed browser storage.
 }
+// Map the sheet's display labels to the persisted ability-score property names.
 const abilityFields = {
   Strength: 'Str',
   Dexterity: 'Dex',
@@ -415,6 +420,7 @@ const abilityFields = {
   Intelligence: 'Int',
   Charisma: 'Cha'
 };
+// Each skill uses one ability modifier when the sheet recalculates its bonus.
 const skillAbilities = {
   Acrobatics: 'Dex',
   'Animal Handling': 'Wis',
@@ -435,6 +441,7 @@ const skillAbilities = {
   Stealth: 'Dex',
   Survival: 'Wis'
 };
+// Seed the visible form fields from the server record and its derived statistics.
 const fields = {
   charname: character.Name,
   classlevel: `${character.Class} ${character.Level}`,
@@ -470,24 +477,34 @@ const fields = {
     character.PreparedSpells?.length ? `Prepared spells: ${character.PreparedSpells.join(', ')}` : ''
   ].filter(Boolean).join('\n')
 };
+// Find a form control by its submitted field name.
 const input = name => document.querySelector(`[name="${name}"]`);
+// Write a derived or loaded value into a field when that field exists on the sheet.
 const setField = (name, value) => {
   const element = input(name);
   if (element && value !== undefined && value !== '') element.value = value;
 };
+// Cache API lookups and rendered detail text to avoid repeat requests while editing.
 const enrichmentCache = new Map();
+// Normalize stored comma-separated values and arrays into a displayable string list.
 const listValue = value => Array.isArray(value)
   ? value.map(item => String(item).trim()).filter(Boolean)
   : String(value || '').split(',').map(item => item.trim()).filter(Boolean);
+// Shared normalized class name for rule lookups in this browser script.
 const characterClass = () => normalize(character.Class);
+// Convert one ability score into its D&D modifier using floor division.
 const modifier = score => Math.floor((Number(score) - 10) / 2);
+// Display a modifier with the sign expected on a character sheet.
 const formatModifier = value => value >= 0 ? `+${value}` : `${value}`;
+// Persist the current browser-side model as a recovery draft.
 const saveCharacter = () => localStorage.setItem(storageKey, JSON.stringify(character));
 
+// Trim a value and normalize it for case-insensitive comparisons.
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+// Render each recognized equipment entry into the equipment details panel.
 function renderEquipment() {
   setField('equipment', [
     character.Armor ? `Armor: ${character.Armor}` : '',
@@ -499,6 +516,7 @@ function renderEquipment() {
   setField('atkname2', character.OffHand);
 }
 
+// Render the known and prepared spell names as separate lists.
 function renderSpells() {
   setField('spellcasting', [
     listValue(character.KnownSpells).length ? `Known spells: ${listValue(character.KnownSpells).join(', ')}` : '',
@@ -506,6 +524,7 @@ function renderSpells() {
   ].filter(Boolean).join('\n'));
 }
 
+// Find the output element used to show the external details for one item.
 function enrichmentOutput(name) {
   const element = input(name);
   if (!element) return null;
@@ -520,6 +539,7 @@ function enrichmentOutput(name) {
   return output;
 }
 
+// Extract unique names from the equipment text box.
 function equipmentNames() {
   const names = [];
   for (const line of input('equipment')?.value.split('\n') || []) {
@@ -533,11 +553,13 @@ function equipmentNames() {
   return names;
 }
 
+// Extract unique names from both known and prepared spell text.
 function spellNames() {
   return [...listValue(character.KnownSpells), ...listValue(character.PreparedSpells)]
     .filter((spell, index, spells) => spells.indexOf(spell) === index);
 }
 
+// Select the relevant weapon or armor properties for the details panel.
 function formatEquipmentDetails(data) {
   const details = [];
   if (data.equipment_category?.name) details.push(data.equipment_category.name);
@@ -550,6 +572,7 @@ function formatEquipmentDetails(data) {
   return details.join(' | ');
 }
 
+// Select a spell's school and range fields for the details panel.
 function formatSpellDetails(data) {
   const details = [];
   if (data.school?.name) details.push(`School: ${data.school.name}`);
@@ -557,6 +580,7 @@ function formatSpellDetails(data) {
   return details.join(' | ');
 }
 
+// Fetch one spell or equipment record through this app's rate-limited API route.
 async function enrichResource(resource, name) {
   const key = `${resource}:${normalize(name)}`;
   if (enrichmentCache.has(key)) return enrichmentCache.get(key);
@@ -575,6 +599,7 @@ async function enrichResource(resource, name) {
   }
 }
 
+// Enrich every named spell and item currently shown on the sheet.
 async function enrichSheet() {
   const output = enrichmentOutput('equipment');
   const equipmentDetails = [];
@@ -603,6 +628,7 @@ async function enrichSheet() {
   if (spellOutput) spellOutput.textContent = spellDetails.join('\n');
 }
 
+// Parse the free-form equipment text into armor, shield, and weapon fields.
 function readEquipment() {
   const equipment = input('equipment')?.value || '';
   const values = { Armor: '', Shield: '', MainHand: '', OffHand: '' };
@@ -626,6 +652,7 @@ function readEquipment() {
   recalculate();
 }
 
+// Parse spell names into the learned and prepared arrays stored with the character.
 function readSpells() {
   const className = characterClass();
   const preparedCaster = ['cleric', 'druid', 'paladin', 'wizard'].includes(className);
@@ -648,10 +675,12 @@ function readSpells() {
   recalculate();
 }
 
+// Calculate the level-based proficiency bonus from the 2014 rules.
 function proficiencyBonus(level) {
   return level < 1 ? 0 : 2 + Math.floor((level - 1) / 4);
 }
 
+// Calculate armor class using equipped armor, shield, Dexterity, and class features.
 function armorClass(scores) {
   const dexterity = modifier(scores.Dex);
   const armor = String(character.Armor || '').trim().toLowerCase();
@@ -678,6 +707,7 @@ function armorClass(scores) {
   return armorClass + (character.Shield ? 2 : 0);
 }
 
+// Calculate the spellcasting ability, save DC, and attack bonus for the class.
 function spellcastingStats(level, proficiency, scores) {
   const abilities = {
     bard: ['Charisma', scores.Cha], cleric: ['Wisdom', scores.Wis], druid: ['Wisdom', scores.Wis],
@@ -690,6 +720,7 @@ function spellcastingStats(level, proficiency, scores) {
   return `Spellcasting: ${result[0]} | Save DC ${8 + proficiency + spellModifier} | Attack ${formatModifier(proficiency + spellModifier)}`;
 }
 
+// Return the spell-slot summary for the class and character level.
 function spellSlots(level) {
   const className = String(character.Class).trim().toLowerCase();
   if (level < 1 || ['paladin', 'ranger'].includes(className) && level < 2) return [];
@@ -717,6 +748,7 @@ if (hasSavedCharacter) {
   }
 }
 
+// Recompute displayed modifiers and derived values whenever level or scores change.
 function recalculate() {
   const scores = {};
   for (const [label, property] of Object.entries(abilityFields)) {
@@ -770,6 +802,7 @@ if (hasSavedCharacter) {
 }
 enrichSheet();
 
+// Add a quick selector for opening any character returned by the local JSON API.
 async function showCharacterBrowser() {
   if (document.getElementById('character-browser')) return;
   const browser = document.createElement('select');
@@ -803,6 +836,7 @@ async function showCharacterBrowser() {
 
 showCharacterBrowser();
 
+// Validate the form, update the local record, then create or update it on the server.
 document.getElementById('save-character')?.addEventListener('click', async () => {
   const status = document.getElementById('save-status');
   const name = input('charname')?.value.trim() || '';
@@ -822,6 +856,13 @@ document.getElementById('save-character')?.addEventListener('click', async () =>
   character.Int = Number(input('Intelligencescore')?.value || 10);
   character.Wis = Number(input('Wisdomscore')?.value || 10);
   character.Cha = Number(input('Charismascore')?.value || 10);
+  if (!serverCharacter?.Editing) {
+    const scores = [character.Str, character.Dex, character.Con, character.Int, character.Wis, character.Cha].sort((a, b) => b - a);
+    if (scores.join(',') !== '15,14,13,12,10,8') {
+      if (status) status.textContent = 'Assign 15, 14, 13, 12, 10, and 8 once each before saving.';
+      return;
+    }
+  }
   character.SkillProficiencies = Object.keys(skillAbilities)
     .filter(skill => input(skill + '-prof')?.checked)
     .map(skill => skill.toLowerCase());
@@ -829,8 +870,10 @@ document.getElementById('save-character')?.addEventListener('click', async () =>
   readSpells();
   if (status) status.textContent = 'Saving…';
   try {
-    const response = await fetch('/api/characters', {
-      method: 'POST',
+    const response = await fetch(serverCharacter?.Editing
+      ? '/api/characters/' + encodeURIComponent(serverCharacter.Name)
+      : '/api/characters', {
+      method: serverCharacter?.Editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(character)
     });

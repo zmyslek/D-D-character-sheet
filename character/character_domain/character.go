@@ -237,6 +237,7 @@ func (character *Character) ApplyAbilityBonus(ability string, points int) error 
 		return nil
 	}
 
+	// Keep the source spelling tolerant of capitalization and surrounding spaces.
 	switch strings.ToLower(strings.TrimSpace(ability)) {
 	case "strength":
 		character.Str += points
@@ -265,6 +266,7 @@ func (character *Character) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// Older saved records stored race and class as nested objects instead of strings.
 	decodeName := func(field string) (string, error) {
 		value, ok := fields[field]
 		if !ok {
@@ -299,6 +301,7 @@ func (character *Character) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid class: %w", err)
 	}
 
+	// Decode the remaining properties through an alias to avoid recursive unmarshalling.
 	delete(fields, "Race")
 	delete(fields, "Class")
 	normalized, err := json.Marshal(fields)
@@ -317,6 +320,7 @@ func (character *Character) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// EquipWeapon stores a weapon in an available main-hand or off-hand slot.
 func (character *Character) EquipWeapon(weaponName string, slot string) error {
 	switch strings.ToLower(strings.TrimSpace(slot)) {
 	case MainHandSlot:
@@ -338,6 +342,7 @@ func (character *Character) EquipWeapon(weaponName string, slot string) error {
 
 // AbilityModifier returns the D&D 5e modifier for an ability score.
 func AbilityModifier(score int) int {
+	// Go integer division truncates toward zero, so negative odd values need flooring.
 	modifier := (score - 10) / 2
 	if score < 10 && (score-10)%2 != 0 {
 		modifier--
@@ -351,4 +356,22 @@ func ProficiencyBonus(level int) int {
 		return 0
 	}
 	return 2 + (level-1)/4
+}
+
+// HasStandardArray reports whether the six base scores use each Standard Array value once.
+func (character *Character) HasStandardArray() bool {
+	// Decrement a count for each score; duplicates and values outside the array fail.
+	counts := map[int]int{8: 1, 10: 1, 12: 1, 13: 1, 14: 1, 15: 1}
+	for _, score := range []int{character.Str, character.Dex, character.Con, character.Int, character.Wis, character.Cha} {
+		if counts[score] == 0 {
+			return false
+		}
+		counts[score]--
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
 }

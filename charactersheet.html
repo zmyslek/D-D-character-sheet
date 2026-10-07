@@ -9,7 +9,9 @@
     <title>{{if .Editing}}Edit {{.Name}}{{else if .Name}}{{.Name}} · Character Sheet{{else}}Create Character{{end}}</title>
 </head>
 <body>
+    <!-- The sheet form holds editable fields plus read-only calculated rule values. -->
     <form class="charsheet">
+  <!-- Identity fields identify the character and their selected class level. -->
   <header>
     <section class="charname">
       <label for="charname">Character Name</label><input name="charname" placeholder="Xaden Riorson" {{if .Editing}}readonly{{end}} />
@@ -37,6 +39,7 @@
       </ul>
     </section>
   </header>
+  <!-- The body is organized into ability, combat, equipment, and notes columns. -->
   <main>
     <section>
       <section class="attributes">
@@ -396,6 +399,7 @@
   MainHand: '', OffHand: '', Armor: '', Shield: '', KnownSpells: [], PreparedSpells: [],
   Str: 10, Dex: 10, Con: 10, Int: 10, Wis: 10, Cha: 10
 };
+// Use a per-character key so temporary browser drafts do not overwrite each other.
 const storageKey = `mpp-character-${character.Name}`;
 let hasSavedCharacter = Boolean(serverCharacter);
 try {
@@ -415,6 +419,7 @@ const abilityFields = {
   Intelligence: 'Int',
   Charisma: 'Cha'
 };
+// Each skill is tied to an ability that supplies its base modifier.
 const skillAbilities = {
   Acrobatics: 'Dex',
   'Animal Handling': 'Wis',
@@ -435,6 +440,7 @@ const skillAbilities = {
   Stealth: 'Dex',
   Survival: 'Wis'
 };
+// Seed editable inputs and derived boxes from the current character object.
 const fields = {
   charname: character.Name,
   classlevel: `${character.Class} ${character.Level}`,
@@ -470,12 +476,16 @@ const fields = {
     character.PreparedSpells?.length ? `Prepared spells: ${character.PreparedSpells.join(', ')}` : ''
   ].filter(Boolean).join('\n')
 };
+// Locate a sheet control by its form-field name.
 const input = name => document.querySelector(`[name="${name}"]`);
+// Populate a displayed value only when the sheet has that control.
 const setField = (name, value) => {
   const element = input(name);
   if (element && value !== undefined && value !== '') element.value = value;
 };
+// Reuse completed API responses while the user edits the sheet.
 const enrichmentCache = new Map();
+// Convert stored arrays or comma-separated text into a normalized list.
 const listValue = value => Array.isArray(value)
   ? value.map(item => String(item).trim()).filter(Boolean)
   : String(value || '').split(',').map(item => item.trim()).filter(Boolean);
@@ -484,10 +494,12 @@ const modifier = score => Math.floor((Number(score) - 10) / 2);
 const formatModifier = value => value >= 0 ? `+${value}` : `${value}`;
 const saveCharacter = () => localStorage.setItem(storageKey, JSON.stringify(character));
 
+// Normalize user-entered names for matching against known rules and cache keys.
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+// Display the details for equipment names that have loaded successfully.
 function renderEquipment() {
   setField('equipment', [
     character.Armor ? `Armor: ${character.Armor}` : '',
@@ -499,6 +511,7 @@ function renderEquipment() {
   setField('atkname2', character.OffHand);
 }
 
+// Display spell details in their own section of the sheet.
 function renderSpells() {
   setField('spellcasting', [
     listValue(character.KnownSpells).length ? `Known spells: ${listValue(character.KnownSpells).join(', ')}` : '',
@@ -506,6 +519,7 @@ function renderSpells() {
   ].filter(Boolean).join('\n'));
 }
 
+// Locate the detail container associated with an equipment or spell name.
 function enrichmentOutput(name) {
   const element = input(name);
   if (!element) return null;
@@ -520,6 +534,7 @@ function enrichmentOutput(name) {
   return output;
 }
 
+// Read unique item names from the equipment field.
 function equipmentNames() {
   const names = [];
   for (const line of input('equipment')?.value.split('\n') || []) {
@@ -533,11 +548,13 @@ function equipmentNames() {
   return names;
 }
 
+// Read unique spell names from the known and prepared spell fields.
 function spellNames() {
   return [...listValue(character.KnownSpells), ...listValue(character.PreparedSpells)]
     .filter((spell, index, spells) => spells.indexOf(spell) === index);
 }
 
+// Format the equipment properties needed by the sheet for display.
 function formatEquipmentDetails(data) {
   const details = [];
   if (data.equipment_category?.name) details.push(data.equipment_category.name);
@@ -550,6 +567,7 @@ function formatEquipmentDetails(data) {
   return details.join(' | ');
 }
 
+// Format school and range properties from an external spell record.
 function formatSpellDetails(data) {
   const details = [];
   if (data.school?.name) details.push(`School: ${data.school.name}`);
@@ -557,6 +575,7 @@ function formatSpellDetails(data) {
   return details.join(' | ');
 }
 
+// Request one named spell or equipment record from the app's enrichment endpoint.
 async function enrichResource(resource, name) {
   const key = `${resource}:${normalize(name)}`;
   if (enrichmentCache.has(key)) return enrichmentCache.get(key);
@@ -575,6 +594,7 @@ async function enrichResource(resource, name) {
   }
 }
 
+// Look up all current item and spell names and update their detail panels.
 async function enrichSheet() {
   const output = enrichmentOutput('equipment');
   const equipmentDetails = [];
@@ -603,6 +623,7 @@ async function enrichSheet() {
   if (spellOutput) spellOutput.textContent = spellDetails.join('\n');
 }
 
+// Parse equipment text into the character's armor, shield, and weapon properties.
 function readEquipment() {
   const equipment = input('equipment')?.value || '';
   const values = { Armor: '', Shield: '', MainHand: '', OffHand: '' };
@@ -626,6 +647,7 @@ function readEquipment() {
   recalculate();
 }
 
+// Parse spell text into the character's learned and prepared spell collections.
 function readSpells() {
   const className = characterClass();
   const preparedCaster = ['cleric', 'druid', 'paladin', 'wizard'].includes(className);
@@ -648,10 +670,12 @@ function readSpells() {
   recalculate();
 }
 
+// Calculate the character's proficiency bonus from level.
 function proficiencyBonus(level) {
   return level < 1 ? 0 : 2 + Math.floor((level - 1) / 4);
 }
 
+// Calculate armor class from equipped defense, Dexterity, and class features.
 function armorClass(scores) {
   const dexterity = modifier(scores.Dex);
   const armor = String(character.Armor || '').trim().toLowerCase();
@@ -678,6 +702,7 @@ function armorClass(scores) {
   return armorClass + (character.Shield ? 2 : 0);
 }
 
+// Calculate the class's spellcasting ability and its derived attack values.
 function spellcastingStats(level, proficiency, scores) {
   const abilities = {
     bard: ['Charisma', scores.Cha], cleric: ['Wisdom', scores.Wis], druid: ['Wisdom', scores.Wis],
@@ -690,6 +715,7 @@ function spellcastingStats(level, proficiency, scores) {
   return `Spellcasting: ${result[0]} | Save DC ${8 + proficiency + spellModifier} | Attack ${formatModifier(proficiency + spellModifier)}`;
 }
 
+// Summarize available spell slots at each level for the selected class.
 function spellSlots(level) {
   const className = String(character.Class).trim().toLowerCase();
   if (level < 1 || ['paladin', 'ranger'].includes(className) && level < 2) return [];
@@ -717,6 +743,7 @@ if (hasSavedCharacter) {
   }
 }
 
+// Refresh all derived sheet values after a relevant input changes.
 function recalculate() {
   const scores = {};
   for (const [label, property] of Object.entries(abilityFields)) {
@@ -770,6 +797,7 @@ if (hasSavedCharacter) {
 }
 enrichSheet();
 
+// Add a selector populated from the server's character collection endpoint.
 async function showCharacterBrowser() {
   if (document.getElementById('character-browser')) return;
   const browser = document.createElement('select');
@@ -803,6 +831,7 @@ async function showCharacterBrowser() {
 
 showCharacterBrowser();
 
+// Validate and persist the current character, reporting request errors beside the button.
 document.getElementById('save-character')?.addEventListener('click', async () => {
   const status = document.getElementById('save-status');
   const name = input('charname')?.value.trim() || '';

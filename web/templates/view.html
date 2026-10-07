@@ -9,10 +9,12 @@
     <title>{{.Name}} – Character Sheet</title>
 </head>
 <body>
+    <!-- The navigation links return to the roster or start character creation. -->
     <nav class="pagenav">
       <a href="/">&larr; All characters</a>
       <a href="/characters/new">+ New character</a>
     </nav>
+    <!-- Read-only controls preserve the character-sheet layout without accepting edits. -->
     <form class="charsheet" onsubmit="return false">
   <header>
     <section class="charname">
@@ -41,8 +43,10 @@
       </ul>
     </section>
   </header>
+  <!-- The sheet is read-only and displays ability scores and proficiency calculations. -->
   <main>
     <section>
+      <!-- Ability scores, saving throws, and skill bonuses occupy the left column. -->
       <section class="attributes">
         <div class="scores">
           <ul>
@@ -108,6 +112,7 @@
       </div>
     </section>
     <section>
+      <!-- Combat totals use the domain model's armor and Dexterity calculations. -->
       <section class="combat">
         <div class="armorclass">
           <div>
@@ -173,6 +178,7 @@
           </div>
         </div>
       </section>
+      <!-- Attacks, equipped gear, and spellcasting details are grouped in the center. -->
       <section class="attacksandspellcasting">
         <div>
           <label>Attacks &amp; Spellcasting</label>

@@ -9,23 +9,21 @@ import (
 )
 
 // RaceAbilityBonus represents one ability-score increase granted by a race.
-// RaceAbilityBonus represents one ability-score increase granted by a race.
 type RaceAbilityBonus struct {
 	Ability string
 	Points  int
 }
 
 // CSVRaceAbilityRepository reads racial ability bonuses from a CSV file.
-// CSVRaceAbilityRepository reads racial ability bonuses from a CSV file.
 type CSVRaceAbilityRepository struct {
 	filePath string
 }
 
+// NewCSVRaceAbilityRepository configures racial bonus lookups for filePath.
 func NewCSVRaceAbilityRepository(filePath string) *CSVRaceAbilityRepository {
 	return &CSVRaceAbilityRepository{filePath: filePath}
 }
 
-// GetByRace returns every ability bonus configured for the requested race.
 // GetByRace returns every ability bonus configured for the requested race.
 func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]RaceAbilityBonus, error) {
 	file, err := os.Open(repository.filePath)

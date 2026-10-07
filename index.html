@@ -9,6 +9,7 @@
     <title>Characters</title>
 </head>
 <body>
+    <!-- The index summarizes each saved character and links to its detailed sheet. -->
     <main class="index">
       <header>
         <h1>Characters</h1>
@@ -16,6 +17,7 @@
         <a class="button" href="/characters/new">+ New character</a>
       </header>
 
+      <!-- Show character cards when records exist; otherwise explain how to create one. -->
       {{if .}}
       <ul class="cards">
         {{range .}}
