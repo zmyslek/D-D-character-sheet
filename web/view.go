@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	characterdomain "mpp-zmyslek/character/character_domain"
+	characterdomain "mpp-zmyslek/internal/domain"
 )
 
 // abilityRow is one ability score box on the view page.

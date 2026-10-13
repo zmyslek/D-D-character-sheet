@@ -1,4 +1,4 @@
-package characterinfrastructure
+package infrastructure
 
 import (
 	"encoding/json"
@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	characterdomain "mpp-zmyslek/character/character_domain"
+	characterdomain "mpp-zmyslek/internal/domain"
+	domain "mpp-zmyslek/internal/domain"
 )
 
 // JSONCharacterRepository stores characters in a JSON file on disk.
@@ -20,7 +21,7 @@ func NewJSONCharacterRepository(filePath string) *JSONCharacterRepository {
 }
 
 // GetAll reads and decodes the complete character collection from the JSON file.
-func (r *JSONCharacterRepository) GetAll() ([]*characterdomain.Character, error) {
+func (r *JSONCharacterRepository) GetAll() ([]*domain.Character, error) {
 	file, err := os.Open(r.filePath)
 	if err != nil {
 		if os.IsNotExist(err) {

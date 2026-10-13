@@ -1,4 +1,4 @@
-package characterdomain
+package domain
 
 type CharacterRepository interface {
 	// CharacterRepository defines the persistence operations used by the application.

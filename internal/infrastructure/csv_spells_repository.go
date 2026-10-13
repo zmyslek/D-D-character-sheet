@@ -1,13 +1,12 @@
-package spellsinfrastructure
+package infrastructure
 
 import (
 	"encoding/csv"
 	"fmt"
+	domain "mpp-zmyslek/internal/domain"
 	"os"
 	"strconv"
 	"strings"
-
-	spellsdomain "mpp-zmyslek/spells/spells_domain"
 )
 
 // CSVSpellsRepository reads spell definitions from a CSV file.
@@ -19,7 +18,7 @@ func NewCSVSpellsRepository(filePath string) *CSVSpellsRepository {
 }
 
 // GetByName finds a spell and parses its level and allowed classes.
-func (repository *CSVSpellsRepository) GetByName(name string) (*spellsdomain.Spell, error) {
+func (repository *CSVSpellsRepository) GetByName(name string) (*domain.Spell, error) {
 	file, err := os.Open(repository.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open spell file: %w", err)
@@ -47,7 +46,7 @@ func (repository *CSVSpellsRepository) GetByName(name string) (*spellsdomain.Spe
 		for _, className := range strings.Split(row[2], ",") {
 			classes = append(classes, strings.ToLower(strings.TrimSpace(className)))
 		}
-		return &spellsdomain.Spell{Name: strings.TrimSpace(row[0]), Level: level, Classes: classes}, nil
+		return &domain.Spell{Name: strings.TrimSpace(row[0]), Level: level, Classes: classes}, nil
 	}
 	return nil, fmt.Errorf("spell %q not found", name)
 }

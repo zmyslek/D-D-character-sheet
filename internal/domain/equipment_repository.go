@@ -1,4 +1,4 @@
-package equipmentdomain
+package domain
 
 // EquipmentRepository provides lookup access to equipment data.
 type EquipmentRepository interface {

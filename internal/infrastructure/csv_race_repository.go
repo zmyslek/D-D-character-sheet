@@ -1,4 +1,4 @@
-package characterinfrastructure
+package infrastructure
 
 import (
 	"encoding/csv"

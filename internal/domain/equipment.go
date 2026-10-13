@@ -1,4 +1,4 @@
-package equipmentdomain
+package domain
 
 // Equipment is the minimal equipment record needed by character management.
 type Equipment struct {

@@ -1,4 +1,4 @@
-package spellsdomain
+package domain
 
 // Spell contains the spell data required for class and slot validation.
 type Spell struct {

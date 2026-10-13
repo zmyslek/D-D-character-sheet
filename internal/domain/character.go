@@ -1,4 +1,4 @@
-package characterdomain
+package domain
 
 import (
 	"encoding/json"

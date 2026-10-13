@@ -8,10 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	characterdomain "mpp-zmyslek/character/character_domain"
-	characterinfrastructure "mpp-zmyslek/character/character_infrastructure"
-	equipmentinfrastructure "mpp-zmyslek/equipment/equipment_infrastructure"
-	spellsinfrastructure "mpp-zmyslek/spells/spells_infrastructure"
+	characterdomain "mpp-zmyslek/internal/domain"
+	infrastructure "mpp-zmyslek/internal/infrastructure"
 	"mpp-zmyslek/web"
 )
 
@@ -47,7 +45,7 @@ func main() {
 		if err := serveCmd.Parse(os.Args[2:]); err != nil {
 			return
 		}
-		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		repository := infrastructure.NewJSONCharacterRepository("characters.json")
 		server, err := web.NewServer(repository)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -107,7 +105,7 @@ func main() {
 			return
 		}
 
-		raceAbilityRepository := characterinfrastructure.NewCSVRaceAbilityRepository("csvs/RaceAbilityBonuses.csv")
+		raceAbilityRepository := infrastructure.NewCSVRaceAbilityRepository("data/RaceAbilityBonuses.csv")
 		raceBonuses, err := raceAbilityRepository.GetByRace(character.Race)
 		if err != nil {
 			fmt.Println(err)
@@ -120,7 +118,7 @@ func main() {
 			}
 		}
 
-		classRepository := characterinfrastructure.NewCSVClassRepository("csvs/Classes.csv")
+		classRepository := infrastructure.NewCSVClassRepository("data/Classes.csv")
 		class, err := classRepository.GetByName(character.Class)
 		if err != nil {
 			fmt.Println(err)
@@ -133,7 +131,7 @@ func main() {
 		)
 		character.SkillProficiencies = addBackgroundSkills(character.SkillProficiencies, character.Background)
 
-		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		repository := infrastructure.NewJSONCharacterRepository("characters.json")
 		// Keep character data in one JSON file so it survives between CLI runs.
 		if err := repository.Create(character); err != nil {
 			fmt.Println(err)
@@ -154,7 +152,7 @@ func main() {
 			return
 		}
 
-		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		repository := infrastructure.NewJSONCharacterRepository("characters.json")
 		character, err := repository.GetByName(*name)
 		if err != nil {
 			fmt.Println(err)
@@ -164,7 +162,7 @@ func main() {
 
 	// List prints the saved characters' names and their core identity fields.
 	case "list":
-		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		repository := infrastructure.NewJSONCharacterRepository("characters.json")
 		characters, err := repository.GetAll()
 		if err != nil {
 			fmt.Println(err)
@@ -186,7 +184,7 @@ func main() {
 			return
 		}
 
-		repository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		repository := infrastructure.NewJSONCharacterRepository("characters.json")
 		if err := repository.Delete(*name); err != nil {
 			fmt.Println(err)
 			return
@@ -224,13 +222,13 @@ func main() {
 			return
 		}
 
-		characterRepository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+		characterRepository := infrastructure.NewJSONCharacterRepository("characters.json")
 		character, err := characterRepository.GetByName(*name)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		equipmentRepository := equipmentinfrastructure.NewCSVEquipmentRepository("csvs/5e-SRD-Equipment.csv")
+		equipmentRepository := infrastructure.NewCSVEquipmentRepository("csvs/5e-SRD-Equipment.csv")
 
 		if *weapon != "" {
 			equipment, err := equipmentRepository.GetByName(*weapon)
@@ -410,7 +408,7 @@ func learnOrPrepareSpell(name, spellName string, prepare bool) {
 		fmt.Println("name and spell are required")
 		return
 	}
-	characterRepository := characterinfrastructure.NewJSONCharacterRepository("characters.json")
+	characterRepository := infrastructure.NewJSONCharacterRepository("characters.json")
 	character, err := characterRepository.GetByName(name)
 	if err != nil {
 		fmt.Println(err)
@@ -429,7 +427,7 @@ func learnOrPrepareSpell(name, spellName string, prepare bool) {
 		return
 	}
 
-	spellRepository := spellsinfrastructure.NewCSVSpellsRepository("csvs/5e-SRD-Spells.csv")
+	spellRepository := infrastructure.NewCSVSpellsRepository("csvs/5e-SRD-Spells.csv")
 	spell, err := spellRepository.GetByName(spellName)
 	if err != nil {
 		fmt.Println(err)

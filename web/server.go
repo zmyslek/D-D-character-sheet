@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	characterdomain "mpp-zmyslek/character/character_domain"
-	characterinfrastructure "mpp-zmyslek/character/character_infrastructure"
+	characterdomain "mpp-zmyslek/internal/domain"
+	characterinfrastructure "mpp-zmyslek/internal/infrastructure"
 )
 
 // assets contains the templates and styles shipped inside the server binary.
@@ -434,7 +434,7 @@ func characterFromForm(request *http.Request) (*characterdomain.Character, error
 
 // applyRaceBonuses loads the configured increases and applies each to the new character.
 func applyRaceBonuses(character *characterdomain.Character) error {
-	repository := characterinfrastructure.NewCSVRaceAbilityRepository("csvs/RaceAbilityBonuses.csv")
+	repository := characterinfrastructure.NewCSVRaceAbilityRepository("data/RaceAbilityBonuses.csv")
 	bonuses, err := repository.GetByRace(character.Race)
 	if err != nil {
 		return err

@@ -1,12 +1,11 @@
-package equipmentinfrastructure
+package infrastructure
 
 import (
 	"encoding/csv"
 	"fmt"
+	domain "mpp-zmyslek/internal/domain"
 	"os"
 	"strings"
-
-	equipmentdomain "mpp-zmyslek/equipment/equipment_domain"
 )
 
 // CSVEquipmentRepository reads equipment records from a CSV file.
@@ -20,7 +19,7 @@ func NewCSVEquipmentRepository(filePath string) *CSVEquipmentRepository {
 }
 
 // GetByName finds equipment using case-insensitive, normalized names.
-func (r *CSVEquipmentRepository) GetByName(name string) (*equipmentdomain.Equipment, error) {
+func (r *CSVEquipmentRepository) GetByName(name string) (*domain.Equipment, error) {
 	file, err := os.Open(r.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open equipment file: %w", err)
@@ -41,7 +40,7 @@ func (r *CSVEquipmentRepository) GetByName(name string) (*equipmentdomain.Equipm
 			if normalizeEquipmentName(name) == "half plate" {
 				equipmentName = "half plate"
 			}
-			return &equipmentdomain.Equipment{
+			return &domain.Equipment{
 				Name: equipmentName,
 				Type: row[1],
 			}, nil
