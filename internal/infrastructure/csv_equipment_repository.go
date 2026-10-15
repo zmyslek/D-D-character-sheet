@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// halfPlate is the name the armor rules use for "Half Plate Armor".
+const halfPlate = "half plate"
+
 // CSVEquipmentRepository reads equipment records from a CSV file.
 type CSVEquipmentRepository struct {
 	filePath string
@@ -37,13 +40,10 @@ func (r *CSVEquipmentRepository) GetByName(name string) (*domain.Equipment, erro
 		}
 		if normalizeEquipmentName(row[0]) == normalizeEquipmentName(name) {
 			equipmentName := strings.TrimSpace(row[0])
-			if normalizeEquipmentName(name) == "half plate" {
-				equipmentName = "half plate"
+			if normalizeEquipmentName(name) == halfPlate {
+				equipmentName = halfPlate
 			}
-			return &domain.Equipment{
-				Name: equipmentName,
-				Type: row[1],
-			}, nil
+			return domain.NewEquipment(equipmentName, row[1]), nil
 		}
 	}
 
@@ -54,7 +54,7 @@ func (r *CSVEquipmentRepository) GetByName(name string) (*domain.Equipment, erro
 func normalizeEquipmentName(name string) string {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	if normalized == "half plate armor" {
-		return "half plate"
+		return halfPlate
 	}
 	return normalized
 }

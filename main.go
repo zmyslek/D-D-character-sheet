@@ -1,17 +1,60 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
+	"time"
 
+	"mpp-zmyslek/internal/application"
 	characterdomain "mpp-zmyslek/internal/domain"
 	infrastructure "mpp-zmyslek/internal/infrastructure"
 	"mpp-zmyslek/web"
 )
+
+// envOr returns the environment variable key, or fallback when it is unset.
+// The defaults reproduce the original behaviour (files in the working directory);
+// Docker sets the variables to use a data volume.
+func envOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+// app holds the wired services of one program run.
+type app struct {
+	commands *application.CharacterService
+	queries  *application.CharacterQueries
+}
+
+// newApp reads the configuration and wires the repositories into the
+// services. One repository instance is shared by commands and queries, so
+// both use the same mutex.
+func newApp() app {
+	dataDir := envOr("MPP_DATA_DIR", "data")
+	characters := infrastructure.NewJSONCharacterRepository(envOr("MPP_CHARACTERS_FILE", "characters.json"))
+	return app{
+		commands: application.NewCharacterService(
+			characters,
+			infrastructure.NewCSVClassRepository(filepath.Join(dataDir, "Classes.csv")),
+			infrastructure.NewCSVRaceAbilityRepository(filepath.Join(dataDir, "RaceAbilityBonuses.csv")),
+			infrastructure.NewCSVEquipmentRepository(filepath.Join(dataDir, "5e-SRD-Equipment.csv")),
+			infrastructure.NewCSVSpellsRepository(filepath.Join(dataDir, "5e-SRD-Spells.csv")),
+		),
+		queries: application.NewCharacterQueries(characters,
+			infrastructure.NewSRDAPIClient(envOr("MPP_SRD_API_URL", infrastructure.DefaultSRDAPIURL))),
+	}
+}
 
 // usage prints the commands currently supported by the command-line interface.
 func usage() {
@@ -26,282 +69,252 @@ func usage() {
   %s equip -name CHARACTER_NAME -shield SHIELD_NAME
   %s learn-spell -name CHARACTER_NAME -spell SPELL_NAME
   %s prepare-spell -name CHARACTER_NAME -spell SPELL_NAME 
-`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+  %s level -name CHARACTER_NAME -level N
+`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
-// main reads the selected command and runs the matching application workflow.
+// Texts used by several commands.
+const (
+	nameFlagUsage   = "character name"
+	msgNameRequired = "name is required"
+)
+
+// main reads the selected command and runs the matching function. Each
+// command returns the process exit code.
 func main() {
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(1)
 	}
-	cmd := os.Args[1]
-
-	switch cmd {
-	// Start the HTTP application with the same JSON repository used by the CLI.
-	case "serve":
-		serveCmd := flag.NewFlagSet("serve", flag.ContinueOnError)
-		address := serveCmd.String("addr", ":8080", "HTTP listen address")
-		if err := serveCmd.Parse(os.Args[2:]); err != nil {
-			return
-		}
-		repository := infrastructure.NewJSONCharacterRepository("characters.json")
-		server, err := web.NewServer(repository)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		fmt.Printf("Character manager listening on %s\n", *address)
-		if err := http.ListenAndServe(*address, server.Handler()); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-	// Create validates base scores, applies race bonuses, and records class/background skills.
-	case "create":
-		createCmd := flag.NewFlagSet("create", flag.ContinueOnError)
-		// Named flags make character creation readable and allow names with spaces.
-		name := createCmd.String("name", "", "character name")
-		race := createCmd.String("race", "", "character race")
-		className := createCmd.String("class", "", "character class")
-		background := createCmd.String("background", "acolyte", "character background")
-		skills := createCmd.String("skills", "", "comma-separated skill proficiencies")
-		level := createCmd.Int("level", 1, "character level")
-		strength := createCmd.Int("str", 10, "strength")
-		dexterity := createCmd.Int("dex", 0, "dexterity")
-		constitution := createCmd.Int("con", 0, "constitution")
-		intelligence := createCmd.Int("int", 0, "intelligence")
-		wisdom := createCmd.Int("wis", 0, "wisdom")
-		charisma := createCmd.Int("cha", 0, "charisma")
-		if err := createCmd.Parse(os.Args[2:]); err != nil {
-			return
-		}
-		// Check the name separately because it is the character's required identifier.
-		if *name == "" {
-			fmt.Println("name is required")
-			os.Exit(2)
-		}
-		if *race == "" || *className == "" {
-			fmt.Println("race and class are required")
-			return
-		}
-
-		// Convert the parsed values into the domain object used by the repository.
-		character := &characterdomain.Character{
-			Name:               *name,
-			Race:               *race,
-			Class:              *className,
-			Level:              *level,
-			Background:         *background,
-			SkillProficiencies: splitValues(*skills),
-			Str:                *strength,
-			Dex:                *dexterity,
-			Con:                *constitution,
-			Int:                *intelligence,
-			Wis:                *wisdom,
-			Cha:                *charisma,
-		}
-
-		// if !character.HasStandardArray() {
-		// 	fmt.Println("ability scores must use the Standard Array once each: 15, 14, 13, 12, 10, 8")
-		// 	return
-		// }
-
-		raceAbilityRepository := infrastructure.NewCSVRaceAbilityRepository("data/RaceAbilityBonuses.csv")
-		raceBonuses, err := raceAbilityRepository.GetByRace(character.Race)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		for _, bonus := range raceBonuses {
-			if err := character.ApplyAbilityBonus(bonus.Ability, bonus.Points); err != nil {
-				fmt.Println(err)
-				return
-			}
-		}
-
-		classRepository := infrastructure.NewCSVClassRepository("data/Classes.csv")
-		class, err := classRepository.GetByName(character.Class)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		character.SkillProficiencies = addSkillProficiencies(
-			character.SkillProficiencies,
-			class.SkillOptions,
-			class.SkillChoiceCount,
-		)
-		character.SkillProficiencies = addBackgroundSkills(character.SkillProficiencies, character.Background)
-
-		repository := infrastructure.NewJSONCharacterRepository("characters.json")
-		// Keep character data in one JSON file so it survives between CLI runs.
-		if err := repository.Create(character); err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Printf("saved character %s\n", character.Name)
-
-	// Load a single saved character and print its calculated sheet to the terminal.
-	case "view":
-		viewCmd := flag.NewFlagSet("view", flag.ContinueOnError)
-		name := viewCmd.String("name", "", "character name")
-		if err := viewCmd.Parse(os.Args[2:]); err != nil {
-			return
-		}
-
-		if *name == "" {
-			fmt.Println("name is required")
-			return
-		}
-
-		repository := infrastructure.NewJSONCharacterRepository("characters.json")
-		character, err := repository.GetByName(*name)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		printCharacter(character)
-
-	// List prints the saved characters' names and their core identity fields.
-	case "list":
-		repository := infrastructure.NewJSONCharacterRepository("characters.json")
-		characters, err := repository.GetAll()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		for _, character := range characters {
-			fmt.Printf("%s - %s %s (level %d)\n", character.Name, character.Race, character.Class, character.Level)
-		}
-
-	// Delete removes one character by its unique name.
-	case "delete":
-		deleteCmd := flag.NewFlagSet("delete", flag.ContinueOnError)
-		name := deleteCmd.String("name", "", "character name")
-		if err := deleteCmd.Parse(os.Args[2:]); err != nil {
-			return
-		}
-		if *name == "" {
-			fmt.Println("name is required")
-			return
-		}
-
-		repository := infrastructure.NewJSONCharacterRepository("characters.json")
-		if err := repository.Delete(*name); err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Printf("deleted %s\n", *name)
-
-	// Equip validates one selected item and writes it into the matching character slot.
-	case "equip":
-		equipCmd := flag.NewFlagSet("equip", flag.ContinueOnError)
-		name := equipCmd.String("name", "", "character name")
-		weapon := equipCmd.String("weapon", "", "weapon name")
-		slot := equipCmd.String("slot", "", "weapon slot")
-		armor := equipCmd.String("armor", "", "armor name")
-		shield := equipCmd.String("shield", "", "shield name")
-		if err := equipCmd.Parse(os.Args[2:]); err != nil {
-			return
-		}
-		if *name == "" {
-			fmt.Println("name is required")
-			return
-		}
-
-		selected := 0
-		if *weapon != "" {
-			selected++
-		}
-		if *armor != "" {
-			selected++
-		}
-		if *shield != "" {
-			selected++
-		}
-		if selected != 1 {
-			fmt.Println("provide exactly one of weapon, armor, or shield")
-			return
-		}
-
-		characterRepository := infrastructure.NewJSONCharacterRepository("characters.json")
-		character, err := characterRepository.GetByName(*name)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		equipmentRepository := infrastructure.NewCSVEquipmentRepository("data/5e-SRD-Equipment.csv")
-
-		if *weapon != "" {
-			equipment, err := equipmentRepository.GetByName(*weapon)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			if !strings.EqualFold(equipment.Type, "Weapon") {
-				fmt.Printf("equipment %q is not a weapon\n", *weapon)
-				return
-			}
-			if err := character.EquipWeapon(equipment.Name, *slot); err != nil {
-				fmt.Println(err)
-				return
-			}
-			fmt.Printf("Equipped weapon %s to %s\n", strings.ToLower(equipment.Name), strings.ToLower(strings.TrimSpace(*slot)))
-		}
-		if *armor != "" {
-			equipment, err := equipmentRepository.GetByName(*armor)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			if !strings.EqualFold(equipment.Type, "Armor") || strings.EqualFold(equipment.Name, "Shield") {
-				fmt.Printf("equipment %q is not armor\n", *armor)
-				return
-			}
-			character.Armor = equipment.Name
-			fmt.Printf("Equipped armor %s\n", strings.ToLower(equipment.Name))
-		}
-		if *shield != "" {
-			equipment, err := equipmentRepository.GetByName(*shield)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			if !strings.EqualFold(equipment.Name, "Shield") {
-				fmt.Printf("equipment %q is not a shield\n", *shield)
-				return
-			}
-			character.Shield = equipment.Name
-			fmt.Printf("Equipped shield %s\n", strings.ToLower(equipment.Name))
-		}
-
-		if err := characterRepository.Update(character); err != nil {
-			fmt.Println(err)
-			return
-		}
-
-	// Learn-spell and prepare-spell both validate class, level, and spell-list eligibility.
-	case "learn-spell":
-		spellCmd := flag.NewFlagSet("learn-spell", flag.ContinueOnError)
-		name := spellCmd.String("name", "", "character name")
-		spellName := spellCmd.String("spell", "", "spell name")
-		if err := spellCmd.Parse(os.Args[2:]); err != nil {
-			return
-		}
-		learnOrPrepareSpell(*name, *spellName, false)
-
-	case "prepare-spell":
-		spellCmd := flag.NewFlagSet("prepare-spell", flag.ContinueOnError)
-		name := spellCmd.String("name", "", "character name")
-		spellName := spellCmd.String("spell", "", "spell name")
-		if err := spellCmd.Parse(os.Args[2:]); err != nil {
-			return
-		}
-		learnOrPrepareSpell(*name, *spellName, true)
-
-	default:
+	commands := map[string]func([]string) int{
+		"serve":         runServe,
+		"create":        runCreate,
+		"view":          runView,
+		"list":          runList,
+		"delete":        runDelete,
+		"equip":         runEquip,
+		"learn-spell":   func(args []string) int { return runSpell("learn-spell", args, false) },
+		"prepare-spell": func(args []string) int { return runSpell("prepare-spell", args, true) },
+		"level":         runLevel,
+	}
+	run, ok := commands[os.Args[1]]
+	if !ok {
 		usage()
 		os.Exit(2)
 	}
+	os.Exit(run(os.Args[2:]))
+}
+
+// runServe starts the HTTP application with the same repositories as the CLI.
+func runServe(args []string) int {
+	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
+	address := flags.String("addr", envOr("MPP_ADDR", ":8080"), "HTTP listen address")
+	if flags.Parse(args) != nil {
+		return 0
+	}
+	if err := serve(*address); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	return 0
+}
+
+// runCreate applies race bonuses and records class/background skills. The CLI
+// accepts any ability scores and replaces an existing character with the same
+// name, exactly as the original program did.
+func runCreate(args []string) int {
+	flags := flag.NewFlagSet("create", flag.ContinueOnError)
+	// Named flags make character creation readable and allow names with spaces.
+	name := flags.String("name", "", nameFlagUsage)
+	race := flags.String("race", "", "character race")
+	className := flags.String("class", "", "character class")
+	background := flags.String("background", "acolyte", "character background")
+	skills := flags.String("skills", "", "comma-separated skill proficiencies")
+	level := flags.Int("level", 1, "character level")
+	strength := flags.Int("str", 10, "strength")
+	dexterity := flags.Int("dex", 0, "dexterity")
+	constitution := flags.Int("con", 0, "constitution")
+	intelligence := flags.Int("int", 0, "intelligence")
+	wisdom := flags.Int("wis", 0, "wisdom")
+	charisma := flags.Int("cha", 0, "charisma")
+	if flags.Parse(args) != nil {
+		return 0
+	}
+	// The name is the character's identifier, so a missing name is a usage error.
+	if *name == "" {
+		fmt.Println(msgNameRequired)
+		return 2
+	}
+	if *race == "" || *className == "" {
+		fmt.Println("race and class are required")
+		return 0
+	}
+	character, _, err := newApp().commands.Create(application.CreateRequest{
+		Name: *name, Race: *race, Class: *className, Background: *background, Level: *level,
+		Scores: characterdomain.AbilityScores{
+			Str: *strength, Dex: *dexterity, Con: *constitution,
+			Int: *intelligence, Wis: *wisdom, Cha: *charisma,
+		},
+		Skills: splitValues(*skills),
+	}, "")
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	fmt.Printf("saved character %s\n", character.Name())
+	return 0
+}
+
+// runView prints one saved character's calculated sheet.
+func runView(args []string) int {
+	name, ok := parseName("view", args)
+	if !ok {
+		return 0
+	}
+	character, err := newApp().queries.Get(name)
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	printCharacter(character)
+	return 0
+}
+
+// runList prints the saved characters' names and their core identity fields.
+func runList([]string) int {
+	characters, err := newApp().queries.GetAll()
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	for _, character := range characters {
+		fmt.Printf("%s - %s %s (level %d)\n", character.Name(), character.Race(), character.Class(), character.Level())
+	}
+	return 0
+}
+
+// runDelete removes one character by its unique name.
+func runDelete(args []string) int {
+	name, ok := parseName("delete", args)
+	if !ok {
+		return 0
+	}
+	if err := newApp().commands.Delete(name); err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	fmt.Printf("deleted %s\n", name)
+	return 0
+}
+
+// parseName parses a command that only takes -name. It prints the problem and
+// returns false when the flags are invalid or the name is missing.
+func parseName(command string, args []string) (string, bool) {
+	flags := flag.NewFlagSet(command, flag.ContinueOnError)
+	name := flags.String("name", "", nameFlagUsage)
+	if flags.Parse(args) != nil {
+		return "", false
+	}
+	if *name == "" {
+		fmt.Println(msgNameRequired)
+		return "", false
+	}
+	return *name, true
+}
+
+// runEquip puts exactly one weapon, armor or shield on a character.
+func runEquip(args []string) int {
+	flags := flag.NewFlagSet("equip", flag.ContinueOnError)
+	name := flags.String("name", "", nameFlagUsage)
+	weapon := flags.String("weapon", "", "weapon name")
+	slot := flags.String("slot", "", "weapon slot")
+	armor := flags.String("armor", "", "armor name")
+	shield := flags.String("shield", "", "shield name")
+	if flags.Parse(args) != nil {
+		return 0
+	}
+	if *name == "" {
+		fmt.Println(msgNameRequired)
+		return 0
+	}
+	selected := 0
+	for _, value := range []string{*weapon, *armor, *shield} {
+		if value != "" {
+			selected++
+		}
+	}
+	if selected != 1 {
+		fmt.Println("provide exactly one of weapon, armor, or shield")
+		return 0
+	}
+
+	commands := newApp().commands
+	switch {
+	case *weapon != "":
+		equipment, err := commands.EquipWeapon(*name, *weapon, *slot)
+		if !reportEquipError(err, characterdomain.ErrNotAWeapon, "equipment %q is not a weapon\n", *weapon) {
+			fmt.Printf("Equipped weapon %s to %s\n", strings.ToLower(equipment.Name()), strings.ToLower(strings.TrimSpace(*slot)))
+		}
+	case *armor != "":
+		equipment, err := commands.EquipArmor(*name, *armor)
+		if !reportEquipError(err, characterdomain.ErrNotArmor, "equipment %q is not armor\n", *armor) {
+			fmt.Printf("Equipped armor %s\n", strings.ToLower(equipment.Name()))
+		}
+	default:
+		equipment, err := commands.EquipShield(*name, *shield)
+		if !reportEquipError(err, characterdomain.ErrNotAShield, "equipment %q is not a shield\n", *shield) {
+			fmt.Printf("Equipped shield %s\n", strings.ToLower(equipment.Name()))
+		}
+	}
+	return 0
+}
+
+// reportEquipError prints an equip error and reports whether there was one.
+// A wrong item kind is reported with the name exactly as the user typed it.
+func reportEquipError(err, wrongKind error, format, typed string) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, wrongKind):
+		fmt.Printf(format, typed)
+	default:
+		fmt.Println(err)
+	}
+	return true
+}
+
+// runSpell handles learn-spell and prepare-spell; the class, level and spell
+// list rules are checked by the domain.
+func runSpell(command string, args []string, prepare bool) int {
+	flags := flag.NewFlagSet(command, flag.ContinueOnError)
+	name := flags.String("name", "", nameFlagUsage)
+	spellName := flags.String("spell", "", "spell name")
+	if flags.Parse(args) != nil {
+		return 0
+	}
+	learnOrPrepareSpell(*name, *spellName, prepare)
+	return 0
+}
+
+// runLevel changes a character's level; the proficiency bonus follows from it.
+func runLevel(args []string) int {
+	flags := flag.NewFlagSet("level", flag.ContinueOnError)
+	name := flags.String("name", "", nameFlagUsage)
+	level := flags.Int("level", 0, "new level")
+	if flags.Parse(args) != nil {
+		return 0
+	}
+	if *name == "" {
+		fmt.Println(msgNameRequired)
+		return 0
+	}
+	character, err := newApp().commands.ChangeLevel(*name, *level)
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	fmt.Printf("%s is now level %d (proficiency bonus %+d)\n", character.Name(), character.Level(), character.ProficiencyBonus())
+	return 0
 }
 
 // splitValues turns a comma-separated CLI flag into normalized non-empty entries.
@@ -320,54 +333,23 @@ func splitValues(values string) []string {
 	return result
 }
 
-// addSkillProficiencies normalizes existing skills and selects the first requested options.
-func addSkillProficiencies(existing, options []string, choiceCount int) []string {
-	result := make([]string, 0, len(existing)+choiceCount)
-	for _, skill := range existing {
-		normalized := strings.ToLower(strings.TrimSpace(skill))
-		if normalized != "" {
-			result = append(result, normalized)
-		}
-	}
-	selected := 0
-	for _, option := range options {
-		normalized := strings.ToLower(strings.TrimSpace(option))
-		if selected >= choiceCount {
-			break
-		}
-		if normalized == "" {
-			continue
-		}
-		result = append(result, normalized)
-		selected++
-	}
-	return result
-}
-
-// addBackgroundSkills adds the fixed skill proficiencies for a known background.
-func addBackgroundSkills(existing []string, background string) []string {
-	backgroundSkills := map[string][]string{
-		"acolyte": {"insight", "religion"},
-	}
-	return addSkillProficiencies(existing, backgroundSkills[strings.ToLower(strings.TrimSpace(background))], 2)
-}
-
 // printCharacter formats a character and its calculated combat information for the CLI.
 func printCharacter(character *characterdomain.Character) {
-	fmt.Printf("Name: %s\n", character.Name)
-	fmt.Printf("Class: %s\n", strings.ToLower(character.Class))
-	fmt.Printf("Race: %s\n", strings.ToLower(character.Race))
-	fmt.Printf("Background: %s\n", strings.ToLower(character.Background))
-	fmt.Printf("Level: %d\n", character.Level)
+	scores := character.Scores()
+	fmt.Printf("Name: %s\n", character.Name())
+	fmt.Printf("Class: %s\n", strings.ToLower(character.Class()))
+	fmt.Printf("Race: %s\n", strings.ToLower(character.Race()))
+	fmt.Printf("Background: %s\n", strings.ToLower(character.Background()))
+	fmt.Printf("Level: %d\n", character.Level())
 	fmt.Println("Ability scores:")
-	fmt.Printf("  STR: %d (%s)\n", character.Str, formatModifier(characterdomain.AbilityModifier(character.Str)))
-	fmt.Printf("  DEX: %d (%s)\n", character.Dex, formatModifier(characterdomain.AbilityModifier(character.Dex)))
-	fmt.Printf("  CON: %d (%s)\n", character.Con, formatModifier(characterdomain.AbilityModifier(character.Con)))
-	fmt.Printf("  INT: %d (%s)\n", character.Int, formatModifier(characterdomain.AbilityModifier(character.Int)))
-	fmt.Printf("  WIS: %d (%s)\n", character.Wis, formatModifier(characterdomain.AbilityModifier(character.Wis)))
-	fmt.Printf("  CHA: %d (%s)\n", character.Cha, formatModifier(characterdomain.AbilityModifier(character.Cha)))
-	fmt.Printf("Proficiency bonus: %s\n", formatModifier(characterdomain.ProficiencyBonus(character.Level)))
-	fmt.Printf("Skill proficiencies: %s\n", strings.Join(character.SkillProficiencies, ", "))
+	for _, ability := range []struct {
+		label string
+		score int
+	}{{"STR", scores.Str}, {"DEX", scores.Dex}, {"CON", scores.Con}, {"INT", scores.Int}, {"WIS", scores.Wis}, {"CHA", scores.Cha}} {
+		fmt.Printf("  %s: %d (%s)\n", ability.label, ability.score, formatModifier(characterdomain.AbilityModifier(ability.score)))
+	}
+	fmt.Printf("Proficiency bonus: %s\n", formatModifier(character.ProficiencyBonus()))
+	fmt.Printf("Skill proficiencies: %s\n", strings.Join(character.SkillProficiencies(), ", "))
 	if character.CanCastSpells() {
 		slots := character.SpellSlots()
 		levels := make([]int, 0, len(slots))
@@ -380,27 +362,23 @@ func printCharacter(character *characterdomain.Character) {
 			fmt.Printf("  Level %d: %d\n", level, slots[level])
 		}
 	}
-	if character.MainHand != "" {
-		fmt.Printf("Main hand: %s\n", strings.ToLower(character.MainHand))
-	}
-	if character.OffHand != "" {
-		fmt.Printf("Off hand: %s\n", strings.ToLower(character.OffHand))
-	}
-	if character.Armor != "" {
-		fmt.Printf("Armor: %s\n", strings.ToLower(character.Armor))
-	}
-	if character.Shield != "" {
-		fmt.Printf("Shield: %s\n", strings.ToLower(character.Shield))
+	for _, item := range []struct{ label, name string }{
+		{"Main hand", character.MainHand()}, {"Off hand", character.OffHand()},
+		{"Armor", character.Armor()}, {"Shield", character.Shield()},
+	} {
+		if item.name != "" {
+			fmt.Printf("%s: %s\n", item.label, strings.ToLower(item.name))
+		}
 	}
 	if character.CanCastSpells() {
-		ability, score := character.SpellcastingAbility()
+		ability, _ := character.SpellcastingAbility()
 		fmt.Printf("Spellcasting ability: %s\n", ability)
-		fmt.Printf("Spell save DC: %d\n", 8+characterdomain.ProficiencyBonus(character.Level)+characterdomain.AbilityModifier(score))
-		fmt.Printf("Spell attack bonus: %s\n", formatModifier(characterdomain.ProficiencyBonus(character.Level)+characterdomain.AbilityModifier(score)))
+		fmt.Printf("Spell save DC: %d\n", character.SpellSaveDC())
+		fmt.Printf("Spell attack bonus: %s\n", formatModifier(character.SpellAttackBonus()))
 	}
 	fmt.Printf("Armor class: %d\n", character.ArmorClass())
-	fmt.Printf("Initiative bonus: %d\n", characterdomain.AbilityModifier(character.Dex))
-	fmt.Printf("Passive perception: %d\n", 10+characterdomain.AbilityModifier(character.Wis))
+	fmt.Printf("Initiative bonus: %d\n", character.Initiative())
+	fmt.Printf("Passive perception: %d\n", character.PassivePerception())
 }
 
 // learnOrPrepareSpell validates spellcasting rules and stores the selected spell.
@@ -409,68 +387,51 @@ func learnOrPrepareSpell(name, spellName string, prepare bool) {
 		fmt.Println("name and spell are required")
 		return
 	}
-	characterRepository := infrastructure.NewJSONCharacterRepository("characters.json")
-	character, err := characterRepository.GetByName(name)
+	spell, err := newApp().commands.AddSpell(name, spellName, prepare)
 	if err != nil {
 		fmt.Println(err)
 		return
-	}
-	if !character.CanCastSpells() {
-		fmt.Println("this class can't cast spells")
-		return
-	}
-	if prepare && !character.IsPreparedCaster() {
-		fmt.Println("this class learns spells and can't prepare them")
-		return
-	}
-	if !prepare && character.IsPreparedCaster() {
-		fmt.Println("this class prepares spells and can't learn them")
-		return
-	}
-
-	spellRepository := infrastructure.NewCSVSpellsRepository("data/5e-SRD-Spells.csv")
-	spell, err := spellRepository.GetByName(spellName)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	className := strings.ToLower(strings.TrimSpace(character.Class))
-	classAvailable := false
-	for _, availableClass := range spell.Classes {
-		if availableClass == className {
-			classAvailable = true
-			break
-		}
-	}
-	if !classAvailable {
-		fmt.Printf("spell %s is not available to this class\n", strings.ToLower(spell.Name))
-		return
-	}
-	if spell.Level > 0 {
-		available := character.SpellSlots()
-		if available[spell.Level] == 0 {
-			fmt.Println("the spell has higher level than the available spell slots")
-			return
-		}
 	}
 	if prepare {
-		character.PreparedSpells = append(character.PreparedSpells, strings.ToLower(spell.Name))
-		if err := characterRepository.Update(character); err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Printf("Prepared spell %s\n", strings.ToLower(spell.Name))
+		fmt.Printf("Prepared spell %s\n", strings.ToLower(spell.Name()))
 		return
 	}
-	character.KnownSpells = append(character.KnownSpells, strings.ToLower(spell.Name))
-	if err := characterRepository.Update(character); err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("Learned spell %s\n", strings.ToLower(spell.Name))
+	fmt.Printf("Learned spell %s\n", strings.ToLower(spell.Name()))
 }
 
 // formatModifier renders a numeric modifier with an explicit plus or minus sign.
 func formatModifier(modifier int) string {
 	return fmt.Sprintf("%+d", modifier)
+}
+
+// serve runs the web server until it receives SIGINT or SIGTERM (Ctrl+C or
+// "docker stop"). It then stops accepting connections and gives running
+// requests up to 10 seconds to finish, so no write is cut off halfway.
+func serve(address string) error {
+	services := newApp()
+	server, err := web.NewServer(services.commands, services.queries)
+	if err != nil {
+		return err
+	}
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+	httpServer := &http.Server{Handler: server.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// The server runs in its own goroutine; main waits for it to fail or for a signal.
+	served := make(chan error, 1)
+	go func() { served <- httpServer.Serve(listener) }()
+	fmt.Printf("Character manager listening on %s\n", address)
+
+	select {
+	case err := <-served:
+		return err
+	case <-ctx.Done():
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return httpServer.Shutdown(shutdownCtx)
 }

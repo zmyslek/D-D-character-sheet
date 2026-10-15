@@ -1,0 +1,14 @@
+.git
+.vscode
+*.md
+docs
+tests
+tools
+coverage.out
+characters.json
+.characters-*.json
+Dockerfile
+docker-compose.yml
+.cover
+coverage-cli.out
+.scannerwork

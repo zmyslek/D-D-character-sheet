@@ -6,13 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-)
 
-// RaceAbilityBonus represents one ability-score increase granted by a race.
-type RaceAbilityBonus struct {
-	Ability string
-	Points  int
-}
+	"mpp-zmyslek/internal/domain"
+)
 
 // CSVRaceAbilityRepository reads racial ability bonuses from a CSV file.
 type CSVRaceAbilityRepository struct {
@@ -25,7 +21,7 @@ func NewCSVRaceAbilityRepository(filePath string) *CSVRaceAbilityRepository {
 }
 
 // GetByRace returns every ability bonus configured for the requested race.
-func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]RaceAbilityBonus, error) {
+func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]domain.RaceAbilityBonus, error) {
 	file, err := os.Open(repository.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open race ability file: %w", err)
@@ -38,7 +34,7 @@ func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]RaceAbilit
 	}
 
 	normalizedRace := normalizeRaceName(race)
-	bonuses := make([]RaceAbilityBonus, 0)
+	bonuses := make([]domain.RaceAbilityBonus, 0)
 	for index, row := range rows {
 		if index == 0 {
 			continue
@@ -54,7 +50,7 @@ func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]RaceAbilit
 		if err != nil {
 			return nil, fmt.Errorf("invalid bonus on race ability row %d: %w", index+1, err)
 		}
-		bonuses = append(bonuses, RaceAbilityBonus{
+		bonuses = append(bonuses, domain.RaceAbilityBonus{
 			Ability: strings.ToLower(strings.TrimSpace(row[1])),
 			Points:  points,
 		})
@@ -64,4 +60,9 @@ func (repository *CSVRaceAbilityRepository) GetByRace(race string) ([]RaceAbilit
 		return nil, fmt.Errorf("race %q not found", race)
 	}
 	return bonuses, nil
+}
+
+// normalizeRaceName makes race names comparable across spaces and hyphens.
+func normalizeRaceName(name string) string {
+	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), " ", "-")
 }

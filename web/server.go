@@ -1,39 +1,53 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+	"unicode"
 
+	"mpp-zmyslek/internal/application"
 	characterdomain "mpp-zmyslek/internal/domain"
-	characterinfrastructure "mpp-zmyslek/internal/infrastructure"
 )
+
+// Route prefixes and header values used in several handlers.
+const (
+	apiCharactersPrefix = "/api/characters/"
+	pagesPrefix         = "/characters/"
+	contentType         = "Content-Type"
+	htmlContentType     = "text/html; charset=utf-8"
+	methodNotAllowed    = "method not allowed"
+)
+
+var errMethodNotAllowed = errors.New(methodNotAllowed)
 
 // assets contains the templates and styles shipped inside the server binary.
 //
 //go:embed templates/*.html static/*.css
 var assets embed.FS
 
-// Server coordinates HTTP routes, template rendering, persistence, and API calls.
+// Server coordinates HTTP routes, template rendering, and API calls. It keeps
+// no per-user state; all character data goes through the CharacterService.
 type Server struct {
-	repository characterdomain.CharacterRepository
-	templates  *template.Template
-	client     *http.Client
-	rateMu     sync.Mutex
-	lastAPIHit time.Time
+	commands  *application.CharacterService
+	queries   *application.CharacterQueries
+	templates *template.Template
+	instance  string
 }
 
-// characterView combines a character with values calculated for its web sheet.
+// characterView combines a character's data with values calculated for its web sheet.
 type characterView struct {
-	*characterdomain.Character
+	characterdomain.CharacterData
 	ProficiencyBonus     int
 	ArmorClass           int
 	Initiative           int
@@ -50,8 +64,9 @@ type characterView struct {
 	Editing              bool
 }
 
-// NewServer parses embedded templates and creates an HTTP server backed by repository.
-func NewServer(repository characterdomain.CharacterRepository) (*Server, error) {
+// NewServer parses embedded templates and creates an HTTP server. Commands
+// change characters; queries read them.
+func NewServer(commands *application.CharacterService, queries *application.CharacterQueries) (*Server, error) {
 	templates, err := template.New("pages").Funcs(template.FuncMap{
 		"abilityModifier": characterdomain.AbilityModifier,
 		"pathEscape":      url.PathEscape,
@@ -69,11 +84,9 @@ func NewServer(repository characterdomain.CharacterRepository) (*Server, error) 
 	if err != nil {
 		return nil, fmt.Errorf("parse web templates: %w", err)
 	}
-	return &Server{
-		repository: repository,
-		templates:  templates,
-		client:     &http.Client{Timeout: 10 * time.Second},
-	}, nil
+	// The host name identifies this instance when several run behind a load balancer.
+	instance, _ := os.Hostname()
+	return &Server{commands: commands, queries: queries, templates: templates, instance: instance}, nil
 }
 
 // Handler returns the router containing the web pages and JSON endpoints.
@@ -83,13 +96,22 @@ func (server *Server) Handler() http.Handler {
 	mux.HandleFunc("/normalize.css", server.rootAsset)
 	mux.HandleFunc("/style.css", server.rootAsset)
 	mux.HandleFunc("/api/characters", server.charactersAPI)
-	mux.HandleFunc("/api/characters/", server.characterAPI)
+	mux.HandleFunc(apiCharactersPrefix, server.characterAPI)
 	mux.HandleFunc("/api/spells/", server.spellAPI)
 	mux.HandleFunc("/api/equipment/", server.equipmentAPI)
 	mux.HandleFunc("/characters/new", server.newCharacter)
-	mux.HandleFunc("/characters/", server.characterPage)
+	mux.HandleFunc(pagesPrefix, server.characterPage)
+	mux.HandleFunc("/healthz", server.health)
 	mux.HandleFunc("/", server.index)
-	return mux
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("X-Instance", server.instance)
+		mux.ServeHTTP(response, request)
+	})
+}
+
+// health answers the liveness checks of Docker and the load balancer.
+func (server *Server) health(response http.ResponseWriter, _ *http.Request) {
+	writeJSON(response, map[string]string{"status": "ok", "instance": server.instance})
 }
 
 // index renders the list of saved characters and rejects non-root paths.
@@ -98,17 +120,17 @@ func (server *Server) index(response http.ResponseWriter, request *http.Request)
 		http.NotFound(response, request)
 		return
 	}
-	characters, err := server.repository.GetAll()
+	characters, err := server.queries.GetAll()
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	server.render(response, "index.html", characters)
+	server.render(response, "index.html", characterData(characters))
 }
 
 // characterPage loads one character from the URL and renders its calculated sheet.
 func (server *Server) characterPage(response http.ResponseWriter, request *http.Request) {
-	path := strings.TrimPrefix(request.URL.EscapedPath(), "/characters/")
+	path := strings.TrimPrefix(request.URL.EscapedPath(), pagesPrefix)
 	if strings.HasSuffix(path, "/delete") {
 		server.deleteCharacter(response, request, strings.TrimSuffix(path, "/delete"))
 		return
@@ -124,10 +146,10 @@ func (server *Server) characterPage(response http.ResponseWriter, request *http.
 	}
 	if request.Method != http.MethodGet {
 		response.Header().Set("Allow", http.MethodGet)
-		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(response, methodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
-	character, err := server.repository.GetByName(name)
+	character, err := server.queries.Get(name)
 	if err != nil {
 		http.NotFound(response, request)
 		return
@@ -145,7 +167,7 @@ func (server *Server) characterPage(response http.ResponseWriter, request *http.
 func (server *Server) deleteCharacter(response http.ResponseWriter, request *http.Request, escapedName string) {
 	if request.Method != http.MethodPost {
 		response.Header().Set("Allow", http.MethodPost)
-		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(response, methodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 	name, err := url.PathUnescape(escapedName)
@@ -153,175 +175,182 @@ func (server *Server) deleteCharacter(response http.ResponseWriter, request *htt
 		http.NotFound(response, request)
 		return
 	}
-	if err := server.repository.Delete(name); err != nil {
+	if err := server.commands.Delete(name); err != nil {
 		http.NotFound(response, request)
 		return
 	}
 	http.Redirect(response, request, "/", http.StatusSeeOther)
 }
 
-// characterAPI updates a named record with PUT or removes it with DELETE.
+// characterAPI reads a named record with GET, updates it with PUT or removes it with DELETE.
 func (server *Server) characterAPI(response http.ResponseWriter, request *http.Request) {
-	if request.Method == http.MethodPut {
-		// Bind updates to the URL name so editing cannot silently create a renamed record.
-		name, err := url.PathUnescape(strings.TrimPrefix(request.URL.EscapedPath(), "/api/characters/"))
-		if err != nil || strings.TrimSpace(name) == "" {
-			writeJSONError(response, fmt.Errorf("character name is required"), http.StatusBadRequest)
-			return
-		}
-		var character characterdomain.Character
-		if err := json.NewDecoder(request.Body).Decode(&character); err != nil {
-			writeJSONError(response, fmt.Errorf("invalid character JSON: %w", err), http.StatusBadRequest)
-			return
-		}
-		if character.Name != name || strings.TrimSpace(character.Race) == "" || strings.TrimSpace(character.Class) == "" || character.Level < 1 || character.Level > 20 {
-			writeJSONError(response, fmt.Errorf("name must match the URL, race and class are required, and level must be 1-20"), http.StatusBadRequest)
-			return
-		}
-		if err := server.repository.Update(&character); err != nil {
-			writeJSONError(response, err, http.StatusNotFound)
-			return
-		}
-		writeJSON(response, character)
+	if strings.HasSuffix(request.URL.Path, "/enrichment") && request.Method == http.MethodGet {
+		server.characterEnrichment(response, request)
 		return
 	}
-	if request.Method != http.MethodDelete {
-		response.Header().Set("Allow", "PUT, DELETE")
-		writeJSONError(response, fmt.Errorf("method not allowed"), http.StatusMethodNotAllowed)
-		return
-	}
-	name, err := url.PathUnescape(strings.TrimPrefix(request.URL.EscapedPath(), "/api/characters/"))
+	name, err := url.PathUnescape(strings.TrimPrefix(request.URL.EscapedPath(), apiCharactersPrefix))
 	if err != nil || strings.TrimSpace(name) == "" {
 		writeJSONError(response, fmt.Errorf("character name is required"), http.StatusBadRequest)
 		return
 	}
-	if err := server.repository.Delete(name); err != nil {
-		writeJSONError(response, err, http.StatusNotFound)
+	switch request.Method {
+	case http.MethodGet:
+		character, err := server.queries.Get(name)
+		if err != nil {
+			writeJSONError(response, err, statusFor(err))
+			return
+		}
+		writeJSON(response, character.Data())
+	case http.MethodPut:
+		server.updateCharacter(response, request, name)
+	case http.MethodDelete:
+		if err := server.commands.Delete(name); err != nil {
+			writeJSONError(response, err, statusFor(err))
+			return
+		}
+		writeJSONStatus(response, map[string]string{"deleted": name}, http.StatusOK)
+	default:
+		response.Header().Set("Allow", "GET, PUT, DELETE")
+		writeJSONError(response, errMethodNotAllowed, http.StatusMethodNotAllowed)
+	}
+}
+
+// updateCharacter saves an edited sheet. The name comes from the URL, so an
+// edit cannot silently create a renamed record.
+func (server *Server) updateCharacter(response http.ResponseWriter, request *http.Request, name string) {
+	var data characterdomain.CharacterData
+	if err := json.NewDecoder(request.Body).Decode(&data); err != nil {
+		writeJSONError(response, fmt.Errorf("invalid character JSON: %w", err), http.StatusBadRequest)
 		return
 	}
-	writeJSONStatus(response, map[string]string{"deleted": name}, http.StatusOK)
+	if data.Name != name {
+		writeJSONError(response, fmt.Errorf("name must match the URL"), http.StatusBadRequest)
+		return
+	}
+	character, err := server.commands.Update(name, application.CharacterEdit{
+		Race: data.Race, Class: data.Class, Level: data.Level, Scores: scoresOf(data),
+		MainHand: data.MainHand, OffHand: data.OffHand, Armor: data.Armor, Shield: data.Shield,
+		KnownSpells: data.KnownSpells, PreparedSpells: data.PreparedSpells,
+	})
+	if err != nil {
+		writeJSONError(response, err, statusFor(err))
+		return
+	}
+	writeJSON(response, character.Data())
 }
 
 // newCharacter renders the creation form or persists a submitted character.
 func (server *Server) newCharacter(response http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
-		server.renderSheet(response, makeCharacterView(&characterdomain.Character{
+		server.renderSheet(response, makeCharacterView(characterdomain.RestoreCharacter(characterdomain.CharacterData{
 			Level: 1, Str: 15, Dex: 14, Con: 13, Int: 12, Wis: 10, Cha: 8,
-		}))
+		})))
 		return
 	}
 	if request.Method != http.MethodPost {
 		response.Header().Set("Allow", "GET, POST")
-		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(response, methodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 	if err := request.ParseForm(); err != nil {
 		http.Error(response, "invalid form", http.StatusBadRequest)
 		return
 	}
-	character, err := characterFromForm(request)
+	createRequest, err := createRequestFromForm(request)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := applyRaceBonuses(character); err != nil {
-		http.Error(response, err.Error(), http.StatusBadRequest)
+	character, _, err := server.commands.Create(createRequest, "")
+	if err != nil {
+		http.Error(response, err.Error(), statusFor(err))
 		return
 	}
-	if err := server.repository.Create(character); err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(response, request, "/characters/"+url.PathEscape(character.Name), http.StatusSeeOther)
+	http.Redirect(response, request, pagesPrefix+url.PathEscape(character.Name()), http.StatusSeeOther)
 }
 
 // charactersAPI serves character reads and validates character creation requests.
 func (server *Server) charactersAPI(response http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodGet {
-		characters, err := server.repository.GetAll()
+		characters, err := server.queries.GetAll()
 		if err != nil {
 			writeJSONError(response, err, http.StatusInternalServerError)
 			return
 		}
-		writeJSON(response, characters)
+		writeJSON(response, characterData(characters))
 		return
 	}
 	if request.Method != http.MethodPost {
 		response.Header().Set("Allow", "GET, POST")
-		writeJSONError(response, fmt.Errorf("method not allowed"), http.StatusMethodNotAllowed)
+		writeJSONError(response, errMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
-	var character characterdomain.Character
-	if err := json.NewDecoder(request.Body).Decode(&character); err != nil {
+	var data characterdomain.CharacterData
+	if err := json.NewDecoder(request.Body).Decode(&data); err != nil {
 		writeJSONError(response, fmt.Errorf("invalid character JSON: %w", err), http.StatusBadRequest)
 		return
 	}
-	if strings.TrimSpace(character.Name) == "" || strings.TrimSpace(character.Race) == "" || strings.TrimSpace(character.Class) == "" {
-		writeJSONError(response, fmt.Errorf("name, race, and class are required"), http.StatusBadRequest)
+	// A client that may retry (for example after a timeout) sends the same
+	// Idempotency-Key each time; the character is then created only once.
+	character, replayed, err := server.commands.Create(application.CreateRequest{
+		Name: data.Name, Race: data.Race, Class: data.Class, Background: data.Background, Level: data.Level,
+		Scores: scoresOf(data), Skills: data.SkillProficiencies,
+		RequireStandardArray: true, RejectDuplicate: true,
+	}, request.Header.Get("Idempotency-Key"))
+	if err != nil {
+		writeJSONError(response, err, statusFor(err))
 		return
 	}
-	if character.Level < 1 || character.Level > 20 || !character.HasStandardArray() {
-		writeJSONError(response, fmt.Errorf("level must be 1-20 and ability scores must use the Standard Array once each: 15, 14, 13, 12, 10, 8"), http.StatusBadRequest)
-		return
+	if replayed {
+		response.Header().Set("Idempotent-Replayed", "true")
 	}
-	if err := applyRaceBonuses(&character); err != nil {
-		writeJSONError(response, err, http.StatusBadRequest)
-		return
-	}
-	if err := server.repository.Create(&character); err != nil {
-		writeJSONError(response, err, http.StatusInternalServerError)
-		return
-	}
-	writeJSONStatus(response, character, http.StatusCreated)
+	writeJSONStatus(response, character.Data(), http.StatusCreated)
 }
 
 // spellAPI enriches a spell name through the shared external-resource handler.
 func (server *Server) spellAPI(response http.ResponseWriter, request *http.Request) {
-	server.enrich(response, "spells", strings.TrimPrefix(request.URL.Path, "/api/spells/"))
+	server.enrich(response, request, "spells", strings.TrimPrefix(request.URL.Path, "/api/spells/"))
 }
 
 // equipmentAPI enriches an equipment name through the shared external-resource handler.
 func (server *Server) equipmentAPI(response http.ResponseWriter, request *http.Request) {
-	server.enrich(response, "equipment", strings.TrimPrefix(request.URL.Path, "/api/equipment/"))
+	server.enrich(response, request, "equipment", strings.TrimPrefix(request.URL.Path, "/api/equipment/"))
 }
 
-// enrich queries the external D&D API while enforcing a minimum request interval.
-func (server *Server) enrich(response http.ResponseWriter, resource, name string) {
+// enrich returns the external details of one spell or item.
+func (server *Server) enrich(response http.ResponseWriter, request *http.Request, resource, name string) {
 	if name == "" {
 		writeJSONError(response, fmt.Errorf("resource name is required"), http.StatusBadRequest)
 		return
 	}
-	// Serialize outbound lookups and leave at least 200 ms between request starts.
-	server.rateMu.Lock()
-	if wait := 200*time.Millisecond - time.Since(server.lastAPIHit); wait > 0 {
-		timer := time.NewTimer(wait)
-		<-timer.C
+	data, err := server.queries.Lookup(request.Context(), resource, name)
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, characterdomain.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeJSONError(response, err, status)
+		return
 	}
-	server.lastAPIHit = time.Now()
-	server.rateMu.Unlock()
+	writeJSON(response, map[string]any{"name": data["name"], "resource": resource, "data": data})
+}
 
-	slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
-	request, err := http.NewRequest(http.MethodGet, "https://www.dnd5eapi.co/api/2014/"+resource+"/"+url.PathEscape(slug), nil)
+// characterEnrichment looks up all spells and items of one character at once.
+// The lookups stop after 30 seconds or when the client disconnects.
+func (server *Server) characterEnrichment(response http.ResponseWriter, request *http.Request) {
+	name, err := url.PathUnescape(strings.TrimSuffix(strings.TrimPrefix(request.URL.EscapedPath(), apiCharactersPrefix), "/enrichment"))
 	if err != nil {
 		writeJSONError(response, err, http.StatusBadRequest)
 		return
 	}
-	result, err := server.client.Do(request)
+	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
+	defer cancel()
+	results, err := server.queries.EnrichCharacter(ctx, name)
 	if err != nil {
-		writeJSONError(response, err, http.StatusBadGateway)
+		writeJSONError(response, err, statusFor(err))
 		return
 	}
-	defer result.Body.Close()
-	if result.StatusCode != http.StatusOK {
-		writeJSONError(response, fmt.Errorf("external API returned %s", result.Status), result.StatusCode)
-		return
-	}
-	var raw map[string]any
-	if err := json.NewDecoder(result.Body).Decode(&raw); err != nil {
-		writeJSONError(response, err, http.StatusBadGateway)
-		return
-	}
-	writeJSON(response, map[string]any{"name": raw["name"], "resource": resource, "data": raw})
+	writeJSON(response, results)
 }
 
 // static serves CSS files from the embedded filesystem.
@@ -342,21 +371,21 @@ func (server *Server) rootAsset(response http.ResponseWriter, request *http.Requ
 		return
 	}
 	if name == "normalize.css" || name == "style.css" {
-		response.Header().Set("Content-Type", "text/css; charset=utf-8")
+		response.Header().Set(contentType, "text/css; charset=utf-8")
 	}
 	_, _ = response.Write(content)
 }
 
 // render executes a named embedded template and reports rendering failures as HTTP errors.
 func (server *Server) render(response http.ResponseWriter, name string, data any) {
-	response.Header().Set("Content-Type", "text/html; charset=utf-8")
+	response.Header().Set(contentType, htmlContentType)
 	if err := server.templates.ExecuteTemplate(response, name, data); err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (server *Server) renderSheet(response http.ResponseWriter, data any) {
-	response.Header().Set("Content-Type", "text/html; charset=utf-8")
+	response.Header().Set(contentType, htmlContentType)
 	if err := server.templates.ExecuteTemplate(response, "charactersheet.html", data); err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
@@ -364,22 +393,49 @@ func (server *Server) renderSheet(response http.ResponseWriter, data any) {
 
 // makeCharacterView calculates the derived statistics displayed by the character page.
 func makeCharacterView(character *characterdomain.Character) characterView {
-	ability, score := character.SpellcastingAbility()
+	ability, _ := character.SpellcastingAbility()
+	scores := character.Scores()
 	return characterView{
-		Character:            character,
-		ProficiencyBonus:     characterdomain.ProficiencyBonus(character.Level),
+		CharacterData:        character.Data(),
+		ProficiencyBonus:     character.ProficiencyBonus(),
 		ArmorClass:           character.ArmorClass(),
-		Initiative:           characterdomain.AbilityModifier(character.Dex),
-		PassiveWisdom:        10 + characterdomain.AbilityModifier(character.Wis),
-		StrengthModifier:     characterdomain.AbilityModifier(character.Str),
-		DexterityModifier:    characterdomain.AbilityModifier(character.Dex),
-		ConstitutionModifier: characterdomain.AbilityModifier(character.Con),
-		IntelligenceModifier: characterdomain.AbilityModifier(character.Int),
-		WisdomModifier:       characterdomain.AbilityModifier(character.Wis),
-		CharismaModifier:     characterdomain.AbilityModifier(character.Cha),
+		Initiative:           character.Initiative(),
+		PassiveWisdom:        character.PassivePerception(),
+		StrengthModifier:     characterdomain.AbilityModifier(scores.Str),
+		DexterityModifier:    characterdomain.AbilityModifier(scores.Dex),
+		ConstitutionModifier: characterdomain.AbilityModifier(scores.Con),
+		IntelligenceModifier: characterdomain.AbilityModifier(scores.Int),
+		WisdomModifier:       characterdomain.AbilityModifier(scores.Wis),
+		CharismaModifier:     characterdomain.AbilityModifier(scores.Cha),
 		SpellAbility:         ability,
-		SpellSaveDC:          8 + characterdomain.ProficiencyBonus(character.Level) + characterdomain.AbilityModifier(score),
-		SpellAttack:          characterdomain.ProficiencyBonus(character.Level) + characterdomain.AbilityModifier(score),
+		SpellSaveDC:          character.SpellSaveDC(),
+		SpellAttack:          character.SpellAttackBonus(),
+	}
+}
+
+// characterData converts characters into plain data for templates and JSON.
+func characterData(characters []*characterdomain.Character) []characterdomain.CharacterData {
+	data := make([]characterdomain.CharacterData, 0, len(characters))
+	for _, character := range characters {
+		data = append(data, character.Data())
+	}
+	return data
+}
+
+func scoresOf(data characterdomain.CharacterData) characterdomain.AbilityScores {
+	return characterdomain.AbilityScores{Str: data.Str, Dex: data.Dex, Con: data.Con, Int: data.Int, Wis: data.Wis, Cha: data.Cha}
+}
+
+// statusFor maps service errors to HTTP status codes; anything else is a
+// rule violation in the request (400).
+func statusFor(err error) int {
+	switch {
+	case errors.Is(err, characterdomain.ErrNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, application.ErrAlreadyExists), errors.Is(err, application.ErrIdempotencyKeyReused):
+		return http.StatusConflict
+	default:
+		return http.StatusBadRequest
 	}
 }
 
@@ -390,7 +446,7 @@ func writeJSON(response http.ResponseWriter, value any) {
 
 // writeJSONStatus writes a JSON response with an explicit HTTP status code.
 func writeJSONStatus(response http.ResponseWriter, value any, status int) {
-	response.Header().Set("Content-Type", "application/json")
+	response.Header().Set(contentType, "application/json")
 	response.WriteHeader(status)
 	_ = json.NewEncoder(response).Encode(value)
 }
@@ -400,51 +456,30 @@ func writeJSONError(response http.ResponseWriter, err error, status int) {
 	writeJSONStatus(response, map[string]string{"error": err.Error()}, status)
 }
 
-// characterFromForm validates form fields and converts them into a domain character.
-func characterFromForm(request *http.Request) (*characterdomain.Character, error) {
-	// Parse numeric controls through one helper so malformed fields get consistent errors.
-	parse := func(field string) (int, error) {
-		var value int
+// createRequestFromForm validates form fields and converts them into a create request.
+func createRequestFromForm(request *http.Request) (application.CreateRequest, error) {
+	numbers := map[string]int{}
+	for _, field := range []string{"level", "str", "dex", "con", "int", "wis", "cha"} {
 		value, err := strconv.Atoi(strings.TrimSpace(request.FormValue(field)))
-		return value, err
-	}
-	character := &characterdomain.Character{Name: strings.TrimSpace(request.FormValue("name")), Race: strings.TrimSpace(request.FormValue("race")), Class: strings.TrimSpace(request.FormValue("class")), Background: strings.TrimSpace(request.FormValue("background"))}
-	if character.Name == "" || character.Race == "" || character.Class == "" {
-		return nil, fmt.Errorf("name, race, and class are required")
-	}
-	var err error
-	if character.Level, err = parse("level"); err != nil {
-		return nil, fmt.Errorf("level must be a number")
-	}
-	if character.Level < 1 || character.Level > 20 {
-		return nil, fmt.Errorf("level must be between 1 and 20")
-	}
-	// Each entered base score must be an integer before Standard Array validation runs.
-	for field, target := range map[string]*int{"str": &character.Str, "dex": &character.Dex, "con": &character.Con, "int": &character.Int, "wis": &character.Wis, "cha": &character.Cha} {
-		if *target, err = parse(field); err != nil {
-			return nil, fmt.Errorf("%s must be a number", field)
+		if err != nil {
+			return application.CreateRequest{}, fmt.Errorf("%s must be a number", field)
 		}
+		numbers[field] = value
 	}
-	character.SkillProficiencies = splitFormValues(request.Form["skills"])
-	if !character.HasStandardArray() {
-		return nil, fmt.Errorf("ability scores must use the Standard Array once each: 15, 14, 13, 12, 10, 8")
-	}
-	return character, nil
-}
-
-// applyRaceBonuses loads the configured increases and applies each to the new character.
-func applyRaceBonuses(character *characterdomain.Character) error {
-	repository := characterinfrastructure.NewCSVRaceAbilityRepository("data/RaceAbilityBonuses.csv")
-	bonuses, err := repository.GetByRace(character.Race)
-	if err != nil {
-		return err
-	}
-	for _, bonus := range bonuses {
-		if err := character.ApplyAbilityBonus(bonus.Ability, bonus.Points); err != nil {
-			return err
-		}
-	}
-	return nil
+	return application.CreateRequest{
+		Name:       strings.TrimSpace(request.FormValue("name")),
+		Race:       strings.TrimSpace(request.FormValue("race")),
+		Class:      strings.TrimSpace(request.FormValue("class")),
+		Background: strings.TrimSpace(request.FormValue("background")),
+		Level:      numbers["level"],
+		Scores: characterdomain.AbilityScores{
+			Str: numbers["str"], Dex: numbers["dex"], Con: numbers["con"],
+			Int: numbers["int"], Wis: numbers["wis"], Cha: numbers["cha"],
+		},
+		Skills:               splitFormValues(request.Form["skills"]),
+		RequireStandardArray: true,
+		RejectDuplicate:      true,
+	}, nil
 }
 
 // splitFormValues accepts repeated checkbox values and comma-separated values uniformly.
@@ -458,4 +493,15 @@ func splitFormValues(values []string) []string {
 		}
 	}
 	return result
+}
+
+// titleCase capitalizes each word of a stored (usually lowercase) value.
+func titleCase(value string) string {
+	words := strings.Fields(strings.ToLower(value))
+	for index, word := range words {
+		runes := []rune(word)
+		runes[0] = unicode.ToUpper(runes[0])
+		words[index] = string(runes)
+	}
+	return strings.Join(words, " ")
 }

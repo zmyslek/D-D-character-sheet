@@ -6,14 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-)
 
-// Class describes class skill choices loaded from the CSV data source.
-type Class struct {
-	Name             string
-	SkillOptions     []string
-	SkillChoiceCount int
-}
+	"mpp-zmyslek/internal/domain"
+)
 
 // CSVClassRepository reads class definitions from a CSV file.
 type CSVClassRepository struct {
@@ -26,7 +21,7 @@ func NewCSVClassRepository(filePath string) *CSVClassRepository {
 }
 
 // GetByName reads the class row and parses its skill choices.
-func (repository *CSVClassRepository) GetByName(name string) (*Class, error) {
+func (repository *CSVClassRepository) GetByName(name string) (*domain.Class, error) {
 	file, err := os.Open(repository.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open class file: %w", err)
@@ -54,11 +49,7 @@ func (repository *CSVClassRepository) GetByName(name string) (*Class, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid skill choice count on class row %d: %w", index+1, err)
 		}
-		return &Class{
-			Name:             strings.TrimSpace(row[0]),
-			SkillOptions:     splitOptions(row[4]),
-			SkillChoiceCount: choiceCount,
-		}, nil
+		return domain.NewClass(strings.TrimSpace(row[0]), splitOptions(row[4]), choiceCount), nil
 	}
 
 	return nil, fmt.Errorf("class %q not found", name)

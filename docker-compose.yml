@@ -1,0 +1,43 @@
+# Local demonstration of load balancing (not a production deployment).
+#
+#   client -> nginx (port 8080) -> GET/HEAD requests: round-robin over the
+#                                  "reader" replicas (writer as backup)
+#                               -> POST/PUT/DELETE:   the single "writer"
+#
+# All instances share the characters file on the "characters" volume. Only
+# one instance writes, because the JSON repository's lock and the
+# idempotency keys live inside one process (see docs/ARCHITECTURE.md).
+services:
+  writer:
+    build: .
+    image: mpp-zmyslek:local
+    volumes:
+      - characters:/data
+    restart: unless-stopped
+
+  reader:
+    image: mpp-zmyslek:local
+    depends_on:
+      writer:
+        condition: service_healthy
+    volumes:
+      - characters:/data:ro
+    deploy:
+      replicas: 2
+    restart: unless-stopped
+
+  lb:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      writer:
+        condition: service_healthy
+      reader:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  characters:

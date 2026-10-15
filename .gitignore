@@ -1,0 +1,5 @@
+coverage.out
+.scannerwork/
+.characters-*.json
+coverage-cli.out
+.cover/

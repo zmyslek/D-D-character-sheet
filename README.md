@@ -3,13 +3,48 @@ If you like D&D, yay! If you dislike it, apologies! As you might have guessed fr
 
 ## Running the application
 
-From this directory, run `go run . serve` and open `http://localhost:8080`. The web interface lists saved characters, renders their sheets, and provides a character creation form. The local JSON API is available at `GET /api/characters` and `POST /api/characters`. Spell and equipment enrichment can be requested through `/api/spells/{name}` and `/api/equipment/{name}`; those routes query the SRD 5.1 API at a courteous rate.
+Requirements: Go 1.23 or newer (standard library only). Run commands from this folder.
 
-The command-line interface remains available through `go run . list`, `go run . create ...`, and the other commands shown by `go run .`. Run the test suite with `go test ./...`.
+```sh
+go run . serve                  # web UI on http://localhost:8080
+go run .                        # list the CLI commands
+go run . create -name Mira -race elf -class wizard -str 8 -dex 14 -con 13 -int 15 -wis 12 -cha 10
+go run . view -name Mira
+go run . level -name Mira -level 5
+go test ./tests/                # automated tests (all tests live in tests/)
+```
 
-### Code comments and data files
+Configuration (optional environment variables): `MPP_CHARACTERS_FILE`
+(default `characters.json`), `MPP_DATA_DIR` (default `data`), `MPP_ADDR`
+(default `:8080`), `MPP_SRD_API_URL` (default `https://www.dnd5eapi.co/api/2014`).
 
-The Go source files and HTML/CSS assets contain comments explaining their main responsibilities, functions, variables, and UI sections. The CSV and JSON files are data sources, so comments are not inserted into them because that would change the parsed data or make JSON invalid.
+Load-balanced demo with Docker (nginx + one writer + two readers):
+
+```sh
+docker compose up -d --build    # http://localhost:8080
+docker compose down -v          # stop and delete the data volume
+```
+
+JSON API: `GET/POST /api/characters`, `GET/PUT/DELETE /api/characters/{name}`,
+`GET /api/characters/{name}/enrichment`, `GET /api/spells/{name}`,
+`GET /api/equipment/{name}`, `GET /healthz`. `POST /api/characters` accepts an
+`Idempotency-Key` header so retries never create a character twice.
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | layers, request flow, concurrency, async work, Docker/DNS/load balancing, statelessness |
+| [docs/DDD.md](docs/DDD.md) | subdomains, bounded contexts, the Character aggregate and its invariants |
+| [docs/DOMAIN_GLOSSARY.md](docs/DOMAIN_GLOSSARY.md) | ubiquitous language |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | functional and non-functional requirements |
+| [docs/DESIGN_PATTERNS.md](docs/DESIGN_PATTERNS.md) | patterns used, leaky abstractions review |
+| [docs/GO_CONCEPTS.md](docs/GO_CONCEPTS.md) | encapsulation, pointers, stack/heap, paradigms, determinism |
+| [docs/QUALITY_AND_TESTING.md](docs/QUALITY_AND_TESTING.md) | ISO/IEC 25010 assessment, test strategy, commands, SonarQube, results |
+| [docs/MANUAL_TEST_PLAN.md](docs/MANUAL_TEST_PLAN.md) | manual tests with observed results |
+| [docs/STANDARDS.md](docs/STANDARDS.md) | ISO/IEC/IEEE standards and how they were used |
+| [docs/DIAGRAMS.md](docs/DIAGRAMS.md) | architecture, C4, domain, context map, ER diagrams |
+| [docs/ASSESSMENT_TRACEABILITY.md](docs/ASSESSMENT_TRACEABILITY.md) | requirement → code → test map and handover report |
 
 ## Dungeons and dragons?
 (Feel free to skip this part if you've ever played D&D, Pathfinder, Baldur's Gate, Neverwinter Nights, Star Wars: Knights of the Old Republic, or any other D&D inspired (video) game).

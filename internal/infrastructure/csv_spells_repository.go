@@ -42,11 +42,7 @@ func (repository *CSVSpellsRepository) GetByName(name string) (*domain.Spell, er
 		if err != nil {
 			return nil, fmt.Errorf("invalid spell level on row %d: %w", index+1, err)
 		}
-		classes := make([]string, 0)
-		for _, className := range strings.Split(row[2], ",") {
-			classes = append(classes, strings.ToLower(strings.TrimSpace(className)))
-		}
-		return &domain.Spell{Name: strings.TrimSpace(row[0]), Level: level, Classes: classes}, nil
+		return domain.NewSpell(strings.TrimSpace(row[0]), level, strings.Split(row[2], ",")), nil
 	}
 	return nil, fmt.Errorf("spell %q not found", name)
 }
