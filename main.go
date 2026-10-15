@@ -228,7 +228,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		equipmentRepository := infrastructure.NewCSVEquipmentRepository("csvs/5e-SRD-Equipment.csv")
+		equipmentRepository := infrastructure.NewCSVEquipmentRepository("data/5e-SRD-Equipment.csv")
 
 		if *weapon != "" {
 			equipment, err := equipmentRepository.GetByName(*weapon)
@@ -427,7 +427,7 @@ func learnOrPrepareSpell(name, spellName string, prepare bool) {
 		return
 	}
 
-	spellRepository := infrastructure.NewCSVSpellsRepository("csvs/5e-SRD-Spells.csv")
+	spellRepository := infrastructure.NewCSVSpellsRepository("data/5e-SRD-Spells.csv")
 	spell, err := spellRepository.GetByName(spellName)
 	if err != nil {
 		fmt.Println(err)
