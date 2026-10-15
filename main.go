@@ -101,10 +101,10 @@ func main() {
 			Cha:                *charisma,
 		}
 
-		if !character.HasStandardArray() {
-			fmt.Println("ability scores must use the Standard Array once each: 15, 14, 13, 12, 10, 8")
-			return
-		}
+		// if !character.HasStandardArray() {
+		// 	fmt.Println("ability scores must use the Standard Array once each: 15, 14, 13, 12, 10, 8")
+		// 	return
+		// }
 
 		raceAbilityRepository := infrastructure.NewCSVRaceAbilityRepository("data/RaceAbilityBonuses.csv")
 		raceBonuses, err := raceAbilityRepository.GetByRace(character.Race)
