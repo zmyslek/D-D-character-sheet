@@ -23,13 +23,13 @@ type Character struct {
 	// Level controls proficiency, spell slots, and other level-dependent rules.
 	Level int
 	// Background and SkillProficiencies describe the character's non-combat training.
-	Background         string
-	SkillProficiencies []string
+	Background         string   `json:",omitempty"`
+	SkillProficiencies []string `json:",omitempty"`
 	// Equipment fields store only the currently equipped items.
-	MainHand       string
-	OffHand        string
-	Armor          string
-	Shield         string
+	MainHand       string   `json:",omitempty"`
+	OffHand        string   `json:",omitempty"`
+	Armor          string   `json:",omitempty"`
+	Shield         string   `json:",omitempty"`
 	KnownSpells    []string `json:",omitempty"`
 	PreparedSpells []string `json:",omitempty"`
 	// Height      float64

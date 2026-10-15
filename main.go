@@ -66,12 +66,12 @@ func main() {
 		background := createCmd.String("background", "acolyte", "character background")
 		skills := createCmd.String("skills", "", "comma-separated skill proficiencies")
 		level := createCmd.Int("level", 1, "character level")
-		strength := createCmd.Int("str", 15, "strength")
-		dexterity := createCmd.Int("dex", 14, "dexterity")
-		constitution := createCmd.Int("con", 13, "constitution")
-		intelligence := createCmd.Int("int", 12, "intelligence")
-		wisdom := createCmd.Int("wis", 10, "wisdom")
-		charisma := createCmd.Int("cha", 8, "charisma")
+		strength := createCmd.Int("str", 10, "strength")
+		dexterity := createCmd.Int("dex", 0, "dexterity")
+		constitution := createCmd.Int("con", 0, "constitution")
+		intelligence := createCmd.Int("int", 0, "intelligence")
+		wisdom := createCmd.Int("wis", 0, "wisdom")
+		charisma := createCmd.Int("cha", 0, "charisma")
 		if err := createCmd.Parse(os.Args[2:]); err != nil {
 			return
 		}
@@ -100,6 +100,7 @@ func main() {
 			Wis:                *wisdom,
 			Cha:                *charisma,
 		}
+
 		if !character.HasStandardArray() {
 			fmt.Println("ability scores must use the Standard Array once each: 15, 14, 13, 12, 10, 8")
 			return
