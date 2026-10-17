@@ -113,5 +113,22 @@
     "Int": 9,
     "Wis": 13,
     "Cha": 15
+  },
+  {
+    "Name": "jgndjgnso",
+    "Race": "Human",
+    "Class": "Warlock",
+    "Level": 1,
+    "Background": "Soldier",
+    "SkillProficiencies": [
+      "arcana",
+      "deception"
+    ],
+    "Str": 16,
+    "Dex": 15,
+    "Con": 14,
+    "Int": 11,
+    "Wis": 13,
+    "Cha": 9
   }
 ]

@@ -185,6 +185,46 @@ func TestServiceEquipment(t *testing.T) {
 	}
 }
 
+func TestServiceCreateWithSpells(t *testing.T) {
+	service, queries, _ := newService(t)
+	mira := wizardRequest("Mira")
+	mira.PreparedSpells = []string{"Fire Bolt", "Magic Missile"}
+	character, _, err := service.Create(mira, "")
+	if err != nil || !reflect.DeepEqual(character.PreparedSpells(), []string{"fire bolt", "magic missile"}) {
+		t.Fatalf("wizard with spells = %v, %v", character, err)
+	}
+
+	fighter := wizardRequest("Conan")
+	fighter.Class = "fighter"
+	invalid := map[string]application.CreateRequest{
+		"fighter learns":   func() application.CreateRequest { r := fighter; r.KnownSpells = []string{"fire bolt"}; return r }(),
+		"fighter prepares": func() application.CreateRequest { r := fighter; r.PreparedSpells = []string{"fire bolt"}; return r }(),
+		"wizard learns": func() application.CreateRequest {
+			r := wizardRequest("W1")
+			r.KnownSpells = []string{"fire bolt"}
+			return r
+		}(),
+		"too high for slots": func() application.CreateRequest {
+			r := wizardRequest("W2")
+			r.PreparedSpells = []string{"fireball"}
+			return r
+		}(),
+		"other class's spell": func() application.CreateRequest {
+			r := wizardRequest("W3")
+			r.PreparedSpells = []string{"cure wounds"}
+			return r
+		}(),
+	}
+	for name, request := range invalid {
+		if _, _, err := service.Create(request, ""); err == nil {
+			t.Errorf("%s: was accepted", name)
+		}
+	}
+	if all, _ := queries.GetAll(); len(all) != 1 {
+		t.Errorf("stored %d characters, want only Mira", len(all))
+	}
+}
+
 func TestServiceSpellsLevelAndDelete(t *testing.T) {
 	service, _ := newFighter(t)
 	if _, err := service.AddSpell("Conan", "unknown spell", false); err == nil || err.Error() != "this class can't cast spells" {

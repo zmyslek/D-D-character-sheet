@@ -54,7 +54,7 @@ complexity without any benefit at this size.
 | I2 | Level is 1–20 and never decreases | `NewCharacter`, `ChangeLevel` | `TestChangeLevel` |
 | I3 | Ability scores stay within 0–30 (also after racial bonuses) | `NewCharacter`, `ApplyAbilityBonus` | `TestNewCharacterValidates`, `TestApplyAbilityBonus` |
 | I4 | Weapons only go into a **free** main or off hand; armor and shields only into their own slot | `EquipWeapon`, `EquipArmor`, `EquipShield` | `TestEquipment` |
-| I5 | A spell must be on the class list and castable at the current level; prepared casters prepare, others learn; a spell is stored once | `CanAddSpell`, `addSpell` | `TestSpells` |
+| I5 | A spell must be on the class list and castable at the current level; prepared casters prepare, others learn; classes without cantrips (paladin, ranger) get none; a spell is stored once. This also holds for spells sent at creation and on the web sheet, which reads the rules from `SpellcastingFor` instead of keeping its own tables | `CanAddSpell`, `addSpell`, `SpellcastingFor` | `TestSpells`, `TestSpellcastingFor`, `TestServiceCreateWithSpells`, `TestSheetSpellcastingComesFromTheDomain` |
 | I6 | Spells stay castable after a level change | follows from I2 (slot levels never shrink as level rises) | `TestSpellSlotsMatchTheSRD` |
 | I7 | Race, class and ability scores do not change after creation | `CharacterService.Update` | `TestServiceUpdate` |
 | I8 | Names are unique (API) | `CharacterService.Create` with `RejectDuplicate` | `TestServiceCreate`, `TestCharactersAPI` |

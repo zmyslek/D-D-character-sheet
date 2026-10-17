@@ -321,6 +321,10 @@ func (character *Character) addSpell(spell *Spell, prepare bool) error {
 	if spell.Level() > highestSpellLevel(character.class, character.level) {
 		return errors.New("the spell has higher level than the available spell slots")
 	}
+	// Paladins and rangers have no cantrips in the SRD.
+	if spell.Level() == 0 && cantripsKnown(character.class, character.level) == 0 {
+		return errors.New("this class can't cast cantrips")
+	}
 	list := &character.knownSpells
 	if prepare {
 		list = &character.preparedSpells
@@ -376,25 +380,33 @@ func (character *Character) PassivePerception() int {
 // SpellcastingAbility returns the governing ability name and score for the class.
 func (character *Character) SpellcastingAbility() (string, int) {
 	scores := character.scores
-	switch normalize(character.class) {
-	case "bard", "paladin", "sorcerer", "warlock":
-		return "charisma", scores.Cha
-	case "cleric", "druid", "ranger":
-		return "wisdom", scores.Wis
-	case "wizard":
-		return "intelligence", scores.Int
+	switch ability := spellcastingAbility(character.class); ability {
+	case "charisma":
+		return ability, scores.Cha
+	case "wisdom":
+		return ability, scores.Wis
+	case "intelligence":
+		return ability, scores.Int
 	default:
 		return "", 0
 	}
 }
 
-// SpellSaveDC is 8 + proficiency bonus + spellcasting ability modifier.
+// SpellSaveDC is 8 + proficiency bonus + spellcasting ability modifier, or 0
+// when the character can't cast spells.
 func (character *Character) SpellSaveDC() int {
+	if !character.CanCastSpells() {
+		return 0
+	}
 	return 8 + character.SpellAttackBonus()
 }
 
-// SpellAttackBonus is proficiency bonus + spellcasting ability modifier.
+// SpellAttackBonus is proficiency bonus + spellcasting ability modifier, or 0
+// when the character can't cast spells.
 func (character *Character) SpellAttackBonus() int {
+	if !character.CanCastSpells() {
+		return 0
+	}
 	_, score := character.SpellcastingAbility()
 	return character.ProficiencyBonus() + AbilityModifier(score)
 }

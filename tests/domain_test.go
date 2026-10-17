@@ -222,6 +222,35 @@ func TestCombatStats(t *testing.T) {
 	if ability, _ := character(t, "rogue", 1, standardScores).SpellcastingAbility(); ability != "" {
 		t.Error("rogues have no spellcasting ability")
 	}
+	// Characters that can't cast spells have no spell save DC or attack bonus,
+	// including a paladin before level 2.
+	for _, class := range []string{"fighter", "paladin"} {
+		if c := character(t, class, 1, standardScores); c.SpellSaveDC() != 0 || c.SpellAttackBonus() != 0 {
+			t.Errorf("%s 1: DC %d, attack %d, want 0 and 0", class, c.SpellSaveDC(), c.SpellAttackBonus())
+		}
+	}
+}
+
+func TestSpellcastingFor(t *testing.T) {
+	tests := []struct {
+		class    string
+		level    int
+		ability  string
+		prepares bool
+		slots    map[int]int
+	}{
+		{"fighter", 20, "", false, nil},
+		{"paladin", 1, "charisma", true, nil},
+		{"paladin", 2, "charisma", true, map[int]int{1: 2}},
+		{"wizard", 1, "intelligence", true, map[int]int{0: 3, 1: 2}},
+		{"warlock", 11, "charisma", false, map[int]int{0: 4, 5: 3}},
+	}
+	for _, tt := range tests {
+		got := domain.SpellcastingFor(tt.class, tt.level)
+		if got.Ability != tt.ability || got.Prepares != tt.prepares || !reflect.DeepEqual(got.Slots, tt.slots) {
+			t.Errorf("SpellcastingFor(%s, %d) = %+v", tt.class, tt.level, got)
+		}
+	}
 }
 
 func TestEquipment(t *testing.T) {
@@ -283,6 +312,7 @@ func TestSpells(t *testing.T) {
 		{"sorcerer cannot prepare", "sorcerer", 1, fireBolt, true, "this class learns spells and can't prepare them"},
 		{"wrong class list", "wizard", 1, cure, true, "spell cure wounds is not available to this class"},
 		{"level too high", "wizard", 1, fireball, true, "the spell has higher level than the available spell slots"},
+		{"half casters have no cantrips", "paladin", 2, domain.NewSpell("Odd Cantrip", 0, []string{"Paladin"}), true, "this class can't cast cantrips"},
 		{"cantrip", "wizard", 1, fireBolt, true, ""},
 		{"first level", "sorcerer", 1, missile, false, ""},
 		// A level 3 warlock only has 2nd-level Pact Magic slots, which can

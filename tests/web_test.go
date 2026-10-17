@@ -206,3 +206,72 @@ func TestEnrichmentEndpoints(t *testing.T) {
 		t.Errorf("failing upstream = %d", got.Code)
 	}
 }
+
+// The web create path follows the same SRD rules as the CLI commands: a
+// fighter can't start with spells, and skill proficiencies come from the class
+// and background, not from whatever the request lists.
+func TestCreateFollowsSRDRules(t *testing.T) {
+	handler := newWebHandler(t)
+	fighter := strings.Replace(strings.Replace(miraJSON, "wizard", "fighter", 1), "Mira", "Conan", 1)
+
+	withSpells := strings.Replace(fighter, `"Level":1`, `"Level":1,"KnownSpells":["fire bolt"]`, 1)
+	if got := request(handler, http.MethodPost, "/api/characters", withSpells); got.Code != http.StatusBadRequest ||
+		!strings.Contains(got.Body.String(), "can't cast spells") {
+		t.Errorf("fighter with spells = %d %s", got.Code, got.Body.String())
+	}
+
+	withSkills := strings.Replace(fighter, `"Level":1`, `"Level":1,"SkillProficiencies":["arcana","stealth","sleight of hand"]`, 1)
+	created := request(handler, http.MethodPost, "/api/characters", withSkills)
+	var body struct{ SkillProficiencies []string }
+	if err := json.Unmarshal(created.Body.Bytes(), &body); err != nil || created.Code != http.StatusCreated {
+		t.Fatalf("fighter = %d %s", created.Code, created.Body.String())
+	}
+	want := []string{"acrobatics", "animal handling", "insight", "religion"}
+	if strings.Join(body.SkillProficiencies, ",") != strings.Join(want, ",") {
+		t.Errorf("skills = %v, want the first two fighter skills + acolyte skills %v", body.SkillProficiencies, want)
+	}
+
+	wizard := strings.Replace(miraJSON, `"Level":1`, `"Level":1,"PreparedSpells":["Fire Bolt"]`, 1)
+	if got := request(handler, http.MethodPost, "/api/characters", wizard); got.Code != http.StatusCreated ||
+		!strings.Contains(got.Body.String(), `"PreparedSpells":["fire bolt"]`) {
+		t.Errorf("wizard with a cantrip = %d %s", got.Code, got.Body.String())
+	}
+}
+
+// The sheet gets its spellcasting from the domain: nothing for a fighter, and
+// the class table the script uses has no slots for fighters at any level.
+func TestSheetSpellcastingComesFromTheDomain(t *testing.T) {
+	handler := newWebHandler(t)
+	request(handler, http.MethodPost, "/api/characters", strings.Replace(strings.Replace(miraJSON, "wizard", "fighter", 1), "Mira", "Conan", 1))
+	request(handler, http.MethodPost, "/api/characters", miraJSON)
+
+	sheetData := func(path string) map[string]any {
+		page := request(handler, http.MethodGet, path, "").Body.String()
+		start := strings.Index(page, `<script id="character-data" type="application/json">`)
+		if start < 0 {
+			t.Fatalf("%s has no character data", path)
+		}
+		page = page[start:]
+		page = page[strings.Index(page, ">")+1 : strings.Index(page, "</script>")]
+		var data map[string]any
+		if err := json.Unmarshal([]byte(page), &data); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		return data
+	}
+
+	conan := sheetData("/characters/Conan")
+	if conan["CanCastSpells"] != false || conan["SpellAbility"] != "" || conan["SpellSaveDC"] != 0.0 || conan["SpellAttack"] != 0.0 {
+		t.Errorf("fighter sheet spellcasting = %v %v %v %v", conan["CanCastSpells"], conan["SpellAbility"], conan["SpellSaveDC"], conan["SpellAttack"])
+	}
+	table := conan["SpellcastingByClass"].(map[string]any)
+	for level, rules := range table["fighter"].([]any) {
+		if slots := rules.(map[string]any)["Slots"]; slots != nil {
+			t.Errorf("fighter level %d has slots %v", level, slots)
+		}
+	}
+	mira := sheetData("/characters/Mira")
+	if mira["CanCastSpells"] != true || mira["SpellAbility"] != "intelligence" {
+		t.Errorf("wizard sheet = %v %v", mira["CanCastSpells"], mira["SpellAbility"])
+	}
+}

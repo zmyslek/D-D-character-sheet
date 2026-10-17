@@ -56,6 +56,9 @@ type CreateRequest struct {
 	Level                         int
 	Scores                        domain.AbilityScores
 	Skills                        []string
+	// KnownSpells and PreparedSpells are added with the same class, level and
+	// spell-list checks as learn-spell and prepare-spell.
+	KnownSpells, PreparedSpells []string
 	// RequireStandardArray is set by the web API. The CLI keeps its original
 	// behaviour and accepts any scores.
 	RequireStandardArray bool
@@ -114,8 +117,8 @@ func (s *CharacterService) Delete(name string) error {
 }
 
 // buildCharacter creates the character and applies the creation rules once:
-// racial ability bonuses, the chosen skills, the first N class skills and the
-// background skills.
+// racial ability bonuses, the chosen skills, the first N class skills, the
+// background skills and any starting spells.
 func (s *CharacterService) buildCharacter(request CreateRequest) (*domain.Character, error) {
 	character, err := domain.NewCharacter(request.Name, request.Race, request.Class, request.Background, request.Level, request.Scores)
 	if err != nil {
@@ -137,7 +140,26 @@ func (s *CharacterService) buildCharacter(request CreateRequest) (*domain.Charac
 	character.AddSkillProficiencies(request.Skills, len(request.Skills))
 	character.AddSkillProficiencies(class.SkillOptions(), class.SkillChoiceCount())
 	character.AddBackgroundSkills()
+	if err := s.addSpells(character, request.KnownSpells, request.PreparedSpells); err != nil {
+		return nil, err
+	}
 	return character, nil
+}
+
+// addSpells learns and prepares the named spells; it stops at the first one
+// the character may not have.
+func (s *CharacterService) addSpells(character *domain.Character, known, prepared []string) error {
+	for _, spellName := range known {
+		if _, err := s.addSpell(character, spellName, false); err != nil {
+			return err
+		}
+	}
+	for _, spellName := range prepared {
+		if _, err := s.addSpell(character, spellName, true); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ChangeLevel sets a new level; the proficiency bonus follows from it.
@@ -271,15 +293,8 @@ func (s *CharacterService) Update(name string, edit CharacterEdit) (*domain.Char
 	}
 
 	character.RemoveSpells()
-	for _, spellName := range edit.KnownSpells {
-		if _, err := s.addSpell(character, spellName, false); err != nil {
-			return nil, err
-		}
-	}
-	for _, spellName := range edit.PreparedSpells {
-		if _, err := s.addSpell(character, spellName, true); err != nil {
-			return nil, err
-		}
+	if err := s.addSpells(character, edit.KnownSpells, edit.PreparedSpells); err != nil {
+		return nil, err
 	}
 	return character, s.characters.Update(character)
 }

@@ -58,11 +58,35 @@ type characterView struct {
 	IntelligenceModifier int
 	WisdomModifier       int
 	CharismaModifier     int
+	CanCastSpells        bool
 	SpellAbility         string
 	SpellSaveDC          int
 	SpellAttack          int
 	Editing              bool
+	// SpellcastingByClass holds, per class and level 0-20, the domain's
+	// spellcasting rules, so the sheet's script can update slots when the
+	// class or level is edited without keeping its own copy of the SRD tables.
+	SpellcastingByClass map[string][]characterdomain.Spellcasting
 }
+
+// srdClasses are the twelve SRD classes shown in the sheet's spellcasting table.
+var srdClasses = []string{
+	"barbarian", "bard", "cleric", "druid", "fighter", "monk",
+	"paladin", "ranger", "rogue", "sorcerer", "warlock", "wizard",
+}
+
+// spellcastingByClass is computed once from the domain rules.
+var spellcastingByClass = func() map[string][]characterdomain.Spellcasting {
+	table := make(map[string][]characterdomain.Spellcasting, len(srdClasses))
+	for _, class := range srdClasses {
+		levels := make([]characterdomain.Spellcasting, characterdomain.MaxLevel+1)
+		for level := range levels {
+			levels[level] = characterdomain.SpellcastingFor(class, level)
+		}
+		table[class] = levels
+	}
+	return table
+}()
 
 // NewServer parses embedded templates and creates an HTTP server. Commands
 // change characters; queries read them.
@@ -292,9 +316,12 @@ func (server *Server) charactersAPI(response http.ResponseWriter, request *http.
 	}
 	// A client that may retry (for example after a timeout) sends the same
 	// Idempotency-Key each time; the character is then created only once.
+	// Skill proficiencies are not taken from the request: the class grants its
+	// first N options and the background its own skills (SRD + assignment rule).
 	character, replayed, err := server.commands.Create(application.CreateRequest{
 		Name: data.Name, Race: data.Race, Class: data.Class, Background: data.Background, Level: data.Level,
-		Scores: scoresOf(data), Skills: data.SkillProficiencies,
+		Scores:      scoresOf(data),
+		KnownSpells: data.KnownSpells, PreparedSpells: data.PreparedSpells,
 		RequireStandardArray: true, RejectDuplicate: true,
 	}, request.Header.Get("Idempotency-Key"))
 	if err != nil {
@@ -394,6 +421,9 @@ func (server *Server) renderSheet(response http.ResponseWriter, data any) {
 // makeCharacterView calculates the derived statistics displayed by the character page.
 func makeCharacterView(character *characterdomain.Character) characterView {
 	ability, _ := character.SpellcastingAbility()
+	if !character.CanCastSpells() {
+		ability = ""
+	}
 	scores := character.Scores()
 	return characterView{
 		CharacterData:        character.Data(),
@@ -407,9 +437,11 @@ func makeCharacterView(character *characterdomain.Character) characterView {
 		IntelligenceModifier: characterdomain.AbilityModifier(scores.Int),
 		WisdomModifier:       characterdomain.AbilityModifier(scores.Wis),
 		CharismaModifier:     characterdomain.AbilityModifier(scores.Cha),
+		CanCastSpells:        character.CanCastSpells(),
 		SpellAbility:         ability,
 		SpellSaveDC:          character.SpellSaveDC(),
 		SpellAttack:          character.SpellAttackBonus(),
+		SpellcastingByClass:  spellcastingByClass,
 	}
 }
 
@@ -476,23 +508,9 @@ func createRequestFromForm(request *http.Request) (application.CreateRequest, er
 			Str: numbers["str"], Dex: numbers["dex"], Con: numbers["con"],
 			Int: numbers["int"], Wis: numbers["wis"], Cha: numbers["cha"],
 		},
-		Skills:               splitFormValues(request.Form["skills"]),
 		RequireStandardArray: true,
 		RejectDuplicate:      true,
 	}, nil
-}
-
-// splitFormValues accepts repeated checkbox values and comma-separated values uniformly.
-func splitFormValues(values []string) []string {
-	var result []string
-	for _, value := range values {
-		for _, skill := range strings.Split(value, ",") {
-			if skill = strings.ToLower(strings.TrimSpace(skill)); skill != "" {
-				result = append(result, skill)
-			}
-		}
-	}
-	return result
 }
 
 // titleCase capitalizes each word of a stored (usually lowercase) value.

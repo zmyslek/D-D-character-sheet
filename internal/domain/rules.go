@@ -124,6 +124,39 @@ func canCastSpells(class string, level int) bool {
 	}
 }
 
+// spellcastingAbility returns the ability a class casts spells with, or "".
+func spellcastingAbility(class string) string {
+	switch normalize(class) {
+	case "bard", "paladin", "sorcerer", "warlock":
+		return "charisma"
+	case "cleric", "druid", "ranger":
+		return "wisdom"
+	case "wizard":
+		return "intelligence"
+	default:
+		return ""
+	}
+}
+
+// Spellcasting is what a class can do with spells at one level, straight from
+// the SRD class tables. Screens use it to show the rules before a character
+// exists (the creation form) or while a level is being edited, so they never
+// keep their own copy of the tables.
+type Spellcasting struct {
+	Ability  string      // "" for classes without spellcasting
+	Prepares bool        // true for classes that prepare instead of learn spells
+	Slots    map[int]int // slots by spell level, 0 = cantrips known; nil = can't cast
+}
+
+// SpellcastingFor returns the spellcasting of a class at a level.
+func SpellcastingFor(class string, level int) Spellcasting {
+	return Spellcasting{
+		Ability:  spellcastingAbility(class),
+		Prepares: isPreparedCaster(class),
+		Slots:    spellSlots(class, level),
+	}
+}
+
 // isPreparedCaster reports whether a class prepares spells rather than learning them.
 func isPreparedCaster(class string) bool {
 	switch normalize(class) {
