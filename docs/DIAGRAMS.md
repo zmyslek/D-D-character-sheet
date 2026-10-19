@@ -93,7 +93,7 @@ flowchart TB
 ```
 
 Without Docker the same binary is one container: `go run . serve` (web) or the
-CLI commands, both using `characters.json` in the working directory.
+CLI commands, both using `data/characters.json` in the working directory.
 
 ## 4. C4 level 3 – Components of the application container
 

@@ -16,8 +16,8 @@ go build -o mpp .
 ```
 
 Reset: `docker compose down -v` (removes the containers **and** the data
-volume). For the CLI, delete `characters.json` in the working directory, or
-restore the committed sample file with `git checkout characters.json`.
+volume). For the CLI, delete `data/characters.json`, or restore the committed
+sample file with `git checkout data/characters.json`.
 
 ## A. Deployment (Docker, load balancer, DNS)
 

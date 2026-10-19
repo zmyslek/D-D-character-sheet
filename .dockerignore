@@ -5,7 +5,7 @@ docs
 tests
 tools
 coverage.out
-characters.json
+data/characters.json
 .characters-*.json
 Dockerfile
 docker-compose.yml

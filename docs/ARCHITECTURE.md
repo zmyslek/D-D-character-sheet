@@ -69,7 +69,7 @@ call a write method; `CharacterReader` does not even contain one.
 
 | Variable | Default | Used for |
 |---|---|---|
-| `MPP_CHARACTERS_FILE` | `characters.json` | character storage |
+| `MPP_CHARACTERS_FILE` | `data/characters.json` | character storage |
 | `MPP_DATA_DIR` | `data` | SRD CSV files |
 | `MPP_ADDR` | `:8080` | `serve` listen address (`-addr` overrides) |
 | `MPP_SRD_API_URL` | `https://www.dnd5eapi.co/api/2014` | external SRD API |

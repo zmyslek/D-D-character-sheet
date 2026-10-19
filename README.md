@@ -15,7 +15,7 @@ go test ./tests/                # automated tests (all tests live in tests/)
 ```
 
 Configuration (optional environment variables): `MPP_CHARACTERS_FILE`
-(default `characters.json`), `MPP_DATA_DIR` (default `data`), `MPP_ADDR`
+(default `data/characters.json`), `MPP_DATA_DIR` (default `data`), `MPP_ADDR`
 (default `:8080`), `MPP_SRD_API_URL` (default `https://www.dnd5eapi.co/api/2014`).
 
 Load-balanced demo with Docker (nginx + one writer + two readers):

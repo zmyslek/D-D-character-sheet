@@ -41,18 +41,28 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// workspace creates a temp dir with the project's data folder linked in,
-// because the CLI reads "data/*.csv" and writes "characters.json" relative to
-// its working directory.
+// workspace creates a temp dir with the project's CSV files linked into its
+// own data folder, because the CLI reads "data/*.csv" and writes
+// "data/characters.json" relative to its working directory. Only the CSVs are
+// linked so the tests never touch the real characters.json.
 func workspace(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	root, err := filepath.Abs("..")
-	if err != nil {
+	csvs, err := filepath.Glob(filepath.Join("..", "data", "*.csv"))
+	if err != nil || len(csvs) == 0 {
+		t.Fatalf("no CSV files found in ../data: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "data"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(filepath.Join(root, "data"), filepath.Join(dir, "data")); err != nil {
-		t.Fatal(err)
+	for _, csv := range csvs {
+		source, err := filepath.Abs(csv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(source, filepath.Join(dir, "data", filepath.Base(csv))); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return dir
 }

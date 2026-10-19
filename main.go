@@ -42,7 +42,7 @@ type app struct {
 // both use the same mutex.
 func newApp() app {
 	dataDir := envOr("MPP_DATA_DIR", "data")
-	characters := infrastructure.NewJSONCharacterRepository(envOr("MPP_CHARACTERS_FILE", "characters.json"))
+	characters := infrastructure.NewJSONCharacterRepository(envOr("MPP_CHARACTERS_FILE", filepath.Join(dataDir, "characters.json")))
 	return app{
 		commands: application.NewCharacterService(
 			characters,

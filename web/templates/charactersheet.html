@@ -550,7 +550,7 @@ function enrichmentOutput(name) {
     output.dataset.enrichmentFor = name;
     output.setAttribute('aria-live', 'polite');
     output.style.cssText = 'font-size:0.8em; line-height:1.3; margin-top:0.25em;';
-    element.insertAdjacentElement('afterend', output);
+    element.after(output);
   }
   return output;
 }
