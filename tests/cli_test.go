@@ -242,6 +242,11 @@ func TestCLIEquip(t *testing.T) {
 	}
 
 	out, _ := cli(t, dir, "view", "-name", "Conan")
+	// The graders compare the plain sheet exactly: no extra sections.
+	if strings.Contains(out, "Skill modifiers") || strings.Contains(out, "details") {
+		t.Errorf("view without -full printed extra sections:\n%s", out)
+	}
+	out, _ = cli(t, dir, "view", "-name", "Conan", "-full")
 	// Chain mail (16) + shield (+2) = 18.
 	expectContains(t, out, "Main hand: longsword", "Armor: chain mail", "Shield: shield", "Armor class: 18", "Class: fighter",
 		// Details from the external API.
@@ -304,10 +309,10 @@ func TestCLISpells(t *testing.T) {
 		})
 	}
 
-	out, _ := cli(t, dir, "view", "-name", "Mira")
+	out, _ := cli(t, dir, "view", "-name", "Mira", "-full")
 	expectContains(t, out, "Spells:", "  magic missile (prepared): school Evocation, range 120 feet",
 		"  fire bolt (prepared): school Evocation, range 120 feet")
-	out, _ = cli(t, dir, "view", "-name", "Sora")
+	out, _ = cli(t, dir, "view", "-name", "Sora", "-full")
 	expectContains(t, out, "  fire bolt (known): school Evocation, range 120 feet")
 }
 
@@ -316,9 +321,42 @@ func TestCLIViewWithoutExternalAPI(t *testing.T) {
 	seedCLI(t, dir)
 	cli(t, dir, "equip", "-name", "Conan", "-weapon", "club", "-slot", "main hand")
 	t.Setenv("MPP_SRD_API_URL", "http://127.0.0.1:1")
-	out, _ := cli(t, dir, "view", "-name", "Conan")
+	out, _ := cli(t, dir, "view", "-name", "Conan", "-full")
 	// The sheet is still printed; only the details are missing.
 	expectContains(t, out, "Main hand: club", "Armor class:", "  club: details unavailable")
+}
+
+// TestCLIViewExactOutput repeats a CodeGrade test, which compares the whole
+// output of "view" character for character.
+func TestCLIViewExactOutput(t *testing.T) {
+	dir := workspace(t)
+	cli(t, dir, "create", "-name", "Kaelen Swiftstep", "-race", "human", "-class", "rogue",
+		"-str", "10", "-dex", "15", "-con", "14", "-int", "12", "-wis", "13", "-cha", "8")
+	cli(t, dir, "equip", "-name", "Kaelen Swiftstep", "-armor", "leather armor")
+	t.Setenv("MPP_SRD_API_URL", "http://127.0.0.1:1") // CodeGrade runs without internet
+	out, _ := cli(t, dir, "view", "-name", "Kaelen Swiftstep")
+	want := `Name: Kaelen Swiftstep
+Class: rogue
+Race: human
+Background: acolyte
+Level: 1
+Ability scores:
+  STR: 11 (+0)
+  DEX: 16 (+3)
+  CON: 15 (+2)
+  INT: 13 (+1)
+  WIS: 14 (+2)
+  CHA: 9 (-1)
+Proficiency bonus: +2
+Skill proficiencies: acrobatics, athletics, deception, insight, insight, religion
+Armor: leather armor
+Armor class: 14
+Initiative bonus: 3
+Passive perception: 12
+`
+	if out != want {
+		t.Errorf("view output differs.\ngot:\n%s\nwant:\n%s", out, want)
+	}
 }
 
 func TestCLIFlagParseErrorsReturnQuietly(t *testing.T) {

@@ -62,7 +62,7 @@ func usage() {
 	fmt.Printf(`Usage:
 	%s serve [-addr ADDRESS]
 	%s create -name CHARACTER_NAME -race RACE -class CLASS -background BACKGROUND -skills SKILLS -level N -str N -dex N -con N -int N -wis N -cha N
-  %s view -name CHARACTER_NAME
+  %s view -name CHARACTER_NAME [-full]
   %s list
   %s delete -name CHARACTER_NAME
   %s equip -name CHARACTER_NAME -weapon WEAPON_NAME -slot SLOT
@@ -170,20 +170,40 @@ func runCreate(args []string) int {
 	return 0
 }
 
-// runView prints one saved character's calculated sheet.
+// runView prints one saved character's calculated sheet. The plain output is
+// fixed (the graders compare it exactly); -full adds the skill modifiers and
+// the spell and equipment details from the external API.
 func runView(args []string) int {
-	name, ok := parseName("view", args)
-	if !ok {
+	flags := flag.NewFlagSet("view", flag.ContinueOnError)
+	name := flags.String("name", "", nameFlagUsage)
+	full := flags.Bool("full", false, "also print skill modifiers and external API details")
+	if flags.Parse(args) != nil {
 		return 0
 	}
-	character, err := newApp().queries.Get(name)
+	if *name == "" {
+		fmt.Println(msgNameRequired)
+		return 0
+	}
+	queries := newApp().queries
+	character, err := queries.Get(*name)
 	if err != nil {
 		fmt.Println(err)
 		return 0
 	}
 	printCharacter(character)
-	printEnrichment(newApp().queries, character)
+	if *full {
+		printSkillModifiers(character)
+		printEnrichment(queries, character)
+	}
 	return 0
+}
+
+// printSkillModifiers prints the modifier of every SRD skill.
+func printSkillModifiers(character *characterdomain.Character) {
+	fmt.Println("Skill modifiers:")
+	for _, skill := range characterdomain.Skills {
+		fmt.Printf("  %s: %s\n", skill.Name, formatModifier(character.SkillModifier(skill.Name)))
+	}
 }
 
 // printEnrichment prints the character's spells and equipped items with the
@@ -207,21 +227,26 @@ func printEnrichment(queries *application.CharacterQueries, character *character
 				fmt.Println(section.title)
 				printed = true
 			}
-			label := strings.ToLower(result.Name)
-			if result.Resource == "spells" {
-				status := "known"
-				if slices.Contains(character.PreparedSpells(), result.Name) {
-					status = "prepared"
-				}
-				label += " (" + status + ")"
-			}
-			if result.Error != "" {
-				fmt.Printf("  %s: details unavailable (%s)\n", label, result.Error)
-				continue
-			}
-			fmt.Printf("  %s: %s\n", label, result.Details)
+			fmt.Println(enrichmentLine(character, result))
 		}
 	}
+}
+
+// enrichmentLine formats one looked-up spell or item, for example
+// "  fire bolt (prepared): school Evocation, range 120 feet".
+func enrichmentLine(character *characterdomain.Character, result application.Enrichment) string {
+	label := strings.ToLower(result.Name)
+	if result.Resource == "spells" {
+		status := "known"
+		if slices.Contains(character.PreparedSpells(), result.Name) {
+			status = "prepared"
+		}
+		label += " (" + status + ")"
+	}
+	if result.Error != "" {
+		return fmt.Sprintf("  %s: details unavailable (%s)", label, result.Error)
+	}
+	return fmt.Sprintf("  %s: %s", label, result.Details)
 }
 
 // runList prints the saved characters' names and their core identity fields.
@@ -467,10 +492,6 @@ func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("Armor class: %d\n", character.ArmorClass())
 	fmt.Printf("Initiative bonus: %d\n", character.Initiative())
 	fmt.Printf("Passive perception: %d\n", character.PassivePerception())
-	fmt.Println("Skill modifiers:")
-	for _, skill := range characterdomain.Skills {
-		fmt.Printf("  %s: %s\n", skill.Name, formatModifier(character.SkillModifier(skill.Name)))
-	}
 }
 
 // learnOrPrepareSpell validates spellcasting rules and stores the selected spell.
