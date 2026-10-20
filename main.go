@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -67,10 +68,12 @@ func usage() {
   %s equip -name CHARACTER_NAME -weapon WEAPON_NAME -slot SLOT
   %s equip -name CHARACTER_NAME -armor ARMOR_NAME
   %s equip -name CHARACTER_NAME -shield SHIELD_NAME
+  %s unequip -name CHARACTER_NAME -slot "main hand"|"off hand"|armor|shield
   %s learn-spell -name CHARACTER_NAME -spell SPELL_NAME
   %s prepare-spell -name CHARACTER_NAME -spell SPELL_NAME 
   %s level -name CHARACTER_NAME -level N
-`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+  %s enrich -name CHARACTER_NAME
+`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 // Texts used by several commands.
@@ -93,6 +96,8 @@ func main() {
 		"list":          runList,
 		"delete":        runDelete,
 		"equip":         runEquip,
+		"unequip":       runUnequip,
+		"enrich":        runEnrich,
 		"learn-spell":   func(args []string) int { return runSpell("learn-spell", args, false) },
 		"prepare-spell": func(args []string) int { return runSpell("prepare-spell", args, true) },
 		"level":         runLevel,
@@ -177,7 +182,46 @@ func runView(args []string) int {
 		return 0
 	}
 	printCharacter(character)
+	printEnrichment(newApp().queries, character)
 	return 0
+}
+
+// printEnrichment prints the character's spells and equipped items with the
+// details looked up in the external D&D 5e API. A failed lookup is shown on
+// its own line, so the rest of the sheet is still printed when offline.
+func printEnrichment(queries *application.CharacterQueries, character *characterdomain.Character) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	results, err := queries.EnrichCharacter(ctx, character.Name())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, section := range []struct{ title, resource string }{{"Spells:", "spells"}, {"Equipment details:", "equipment"}} {
+		printed := false
+		for _, result := range results {
+			if result.Resource != section.resource {
+				continue
+			}
+			if !printed {
+				fmt.Println(section.title)
+				printed = true
+			}
+			label := strings.ToLower(result.Name)
+			if result.Resource == "spells" {
+				status := "known"
+				if slices.Contains(character.PreparedSpells(), result.Name) {
+					status = "prepared"
+				}
+				label += " (" + status + ")"
+			}
+			if result.Error != "" {
+				fmt.Printf("  %s: details unavailable (%s)\n", label, result.Error)
+				continue
+			}
+			fmt.Printf("  %s: %s\n", label, result.Details)
+		}
+	}
 }
 
 // runList prints the saved characters' names and their core identity fields.
@@ -265,6 +309,50 @@ func runEquip(args []string) int {
 		if !reportEquipError(err, characterdomain.ErrNotAShield, "equipment %q is not a shield\n", *shield) {
 			fmt.Printf("Equipped shield %s\n", strings.ToLower(equipment.Name()))
 		}
+	}
+	return 0
+}
+
+// runUnequip empties one equipment slot of a character.
+func runUnequip(args []string) int {
+	flags := flag.NewFlagSet("unequip", flag.ContinueOnError)
+	name := flags.String("name", "", nameFlagUsage)
+	slot := flags.String("slot", "", `"main hand", "off hand", "armor" or "shield"`)
+	if flags.Parse(args) != nil {
+		return 0
+	}
+	if *name == "" {
+		fmt.Println(msgNameRequired)
+		return 0
+	}
+	if _, err := newApp().commands.Unequip(*name, *slot); err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	fmt.Printf("Unequipped %s\n", strings.ToLower(strings.TrimSpace(*slot)))
+	return 0
+}
+
+// runEnrich looks up every equipped item and spell of a character in the
+// external D&D 5e API (concurrently, rate-limited) and prints their details.
+func runEnrich(args []string) int {
+	name, ok := parseName("enrich", args)
+	if !ok {
+		return 0
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	results, err := newApp().queries.EnrichCharacter(ctx, name)
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	for _, result := range results {
+		if result.Error != "" {
+			fmt.Printf("%s: %s\n", strings.ToLower(result.Name), result.Error)
+			continue
+		}
+		fmt.Printf("%s: %s\n", strings.ToLower(result.Name), result.Details)
 	}
 	return 0
 }
@@ -379,6 +467,10 @@ func printCharacter(character *characterdomain.Character) {
 	fmt.Printf("Armor class: %d\n", character.ArmorClass())
 	fmt.Printf("Initiative bonus: %d\n", character.Initiative())
 	fmt.Printf("Passive perception: %d\n", character.PassivePerception())
+	fmt.Println("Skill modifiers:")
+	for _, skill := range characterdomain.Skills {
+		fmt.Printf("  %s: %s\n", skill.Name, formatModifier(character.SkillModifier(skill.Name)))
+	}
 }
 
 // learnOrPrepareSpell validates spellcasting rules and stores the selected spell.

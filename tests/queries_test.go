@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -150,6 +151,53 @@ func fakeSRDAPI(t *testing.T, hits *atomic.Int32) *httptest.Server {
 	}))
 	t.Cleanup(server.Close)
 	return server
+}
+
+func TestSlug(t *testing.T) {
+	tests := map[string]string{
+		"Fire Bolt": "fire-bolt", "Crossbow, light": "crossbow-light", "Hunter's Mark": "hunters-mark",
+		"Heroes' Feast": "heroes-feast", "half plate": "half-plate-armor", " Shield ": "shield",
+	}
+	for name, want := range tests {
+		if got := infrastructure.Slug(name); got != want {
+			t.Errorf("Slug(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+// decode turns an API-style JSON document into the map that Lookup returns.
+func decode(t *testing.T, document string) map[string]any {
+	t.Helper()
+	var data map[string]any
+	if err := json.Unmarshal([]byte(document), &data); err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func TestDetailsFrom(t *testing.T) {
+	tests := []struct {
+		name, resource, document string
+		want                     application.Details
+		text                     string
+	}{
+		{"spell", "spells", `{"range":"120 feet","school":{"index":"evocation","name":"Evocation"}}`,
+			application.Details{School: "Evocation", Range: "120 feet"}, "school Evocation, range 120 feet"},
+		{"two-handed ranged weapon", "equipment", `{"weapon_category":"Martial","weapon_range":"Ranged","range":{"normal":150,"long":600},"properties":[{"index":"ammunition"},{"index":"heavy"},{"index":"two-handed"}]}`,
+			application.Details{Category: "Martial", NormalRange: 150, TwoHanded: true}, "category Martial, normal range 150 ft., two-handed"},
+		{"melee weapon", "equipment", `{"weapon_category":"Simple","range":{"normal":5},"properties":[{"index":"light"}]}`,
+			application.Details{Category: "Simple", NormalRange: 5}, "category Simple, normal range 5 ft."},
+		{"medium armor", "equipment", `{"armor_category":"Medium","armor_class":{"base":15,"dex_bonus":true,"max_bonus":2}}`,
+			application.Details{Category: "Medium", ArmorClass: 15, DexBonus: true, MaxBonus: 2}, "category Medium, armor class 15, dex bonus (max 2)"},
+		{"heavy armor", "equipment", `{"armor_category":"Heavy","armor_class":{"base":18,"dex_bonus":false}}`,
+			application.Details{Category: "Heavy", ArmorClass: 18}, "category Heavy, armor class 18, no dex bonus"},
+	}
+	for _, tt := range tests {
+		got := application.DetailsFrom(tt.resource, decode(t, tt.document))
+		if got != tt.want || got.String() != tt.text {
+			t.Errorf("%s: got %+v %q, want %+v %q", tt.name, got, got.String(), tt.want, tt.text)
+		}
+	}
 }
 
 func TestSRDAPIClient(t *testing.T) {

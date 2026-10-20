@@ -227,3 +227,24 @@ func backgroundSkills(background string) []string {
 	}
 	return nil
 }
+
+// Skills lists the eighteen SRD skills in alphabetical order with the ability
+// each one uses.
+var Skills = []struct{ Name, Ability string }{
+	{"acrobatics", "dexterity"}, {"animal handling", "wisdom"}, {"arcana", "intelligence"},
+	{"athletics", "strength"}, {"deception", "charisma"}, {"history", "intelligence"},
+	{"insight", "wisdom"}, {"intimidation", "charisma"}, {"investigation", "intelligence"},
+	{"medicine", "wisdom"}, {"nature", "intelligence"}, {"perception", "wisdom"},
+	{"performance", "charisma"}, {"persuasion", "charisma"}, {"religion", "intelligence"},
+	{"sleight of hand", "dexterity"}, {"stealth", "dexterity"}, {"survival", "wisdom"},
+}
+
+// skillAbility returns the ability a skill uses, or "" for an unknown skill.
+func skillAbility(skill string) string {
+	for _, entry := range Skills {
+		if entry.Name == normalize(skill) {
+			return entry.Ability
+		}
+	}
+	return ""
+}

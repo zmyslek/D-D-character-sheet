@@ -275,6 +275,23 @@ func (character *Character) EquipShield(shield *Equipment) error {
 	return nil
 }
 
+// Unequip empties one slot: "main hand", "off hand", "armor" or "shield".
+func (character *Character) Unequip(slot string) error {
+	switch normalize(slot) {
+	case MainHandSlot:
+		character.mainHand = ""
+	case OffHandSlot:
+		character.offHand = ""
+	case "armor":
+		character.armor = ""
+	case "shield":
+		character.shield = ""
+	default:
+		return fmt.Errorf("slot must be %q, %q, \"armor\" or \"shield\"", MainHandSlot, OffHandSlot)
+	}
+	return nil
+}
+
 // RemoveEquipment empties every equipment slot.
 func (character *Character) RemoveEquipment() {
 	character.mainHand, character.offHand, character.armor, character.shield = "", "", "", ""
@@ -362,6 +379,52 @@ func (character *Character) ArmorClass() int {
 	return armorClass(character.class, character.armor, character.shield != "", scores.Dex, scores.Con, scores.Wis)
 }
 
+// abilityScore returns the score of an ability by its full name, or 10 (a
+// +0 modifier) for an unknown name.
+func (character *Character) abilityScore(ability string) int {
+	scores := character.scores
+	switch normalize(ability) {
+	case "strength":
+		return scores.Str
+	case "dexterity":
+		return scores.Dex
+	case "constitution":
+		return scores.Con
+	case "intelligence":
+		return scores.Int
+	case "wisdom":
+		return scores.Wis
+	case "charisma":
+		return scores.Cha
+	default:
+		return 10
+	}
+}
+
+// IsProficient reports whether the character is proficient in a skill.
+func (character *Character) IsProficient(skill string) bool {
+	return slices.Contains(character.skillProficiencies, normalize(skill))
+}
+
+// SkillModifier is the modifier of the skill's ability, plus the proficiency
+// bonus when the character is proficient in the skill.
+func (character *Character) SkillModifier(skill string) int {
+	modifier := AbilityModifier(character.abilityScore(skillAbility(skill)))
+	if character.IsProficient(skill) {
+		modifier += character.ProficiencyBonus()
+	}
+	return modifier
+}
+
+// SkillModifiers returns the modifier of every SRD skill by skill name.
+func (character *Character) SkillModifiers() map[string]int {
+	modifiers := make(map[string]int, len(Skills))
+	for _, skill := range Skills {
+		modifiers[skill.Name] = character.SkillModifier(skill.Name)
+	}
+	return modifiers
+}
+
 // Initiative is the Dexterity modifier.
 func (character *Character) Initiative() int {
 	return AbilityModifier(character.scores.Dex)
@@ -370,11 +433,7 @@ func (character *Character) Initiative() int {
 // PassivePerception is 10 + Wisdom modifier, plus the proficiency bonus when
 // the character is proficient in Perception (SRD "passive Wisdom (Perception)").
 func (character *Character) PassivePerception() int {
-	passive := 10 + AbilityModifier(character.scores.Wis)
-	if slices.Contains(character.skillProficiencies, "perception") {
-		passive += character.ProficiencyBonus()
-	}
-	return passive
+	return 10 + character.SkillModifier("perception")
 }
 
 // SpellcastingAbility returns the governing ability name and score for the class.

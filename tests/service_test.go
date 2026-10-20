@@ -130,7 +130,7 @@ func TestConcurrentChangesAreNotLost(t *testing.T) {
 	if _, err := service.ChangeLevel("Mira", 5); err != nil {
 		t.Fatal(err)
 	}
-	spells := []string{"Fire Bolt", "Light", "Magic Missile", "Shield", "Sleep", "Fireball", "Fly", "Haste"}
+	spells := []string{"Fire Bolt", "Light", "Magic Missile", "Shield", "Burning Hands", "Fireball", "Fly", "Haste"}
 	var wg sync.WaitGroup
 	for _, spell := range spells {
 		for range 3 { // repeats must not create duplicates

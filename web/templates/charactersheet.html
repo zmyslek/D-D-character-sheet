@@ -379,8 +379,8 @@
   <div class="sheet-actions">
     <a class="back-button" href="/">← Back to characters</a>
     {{if .Editing}}<a href="/characters/{{pathEscape .Name}}">Cancel editing</a>{{else if .Name}}<a href="/characters/{{pathEscape .Name}}/edit">Edit character</a>{{end}}
-    <button type="button" id="save-character">{{if .Editing}}Save changes{{else}}Save character{{end}}</button>
-    <output id="save-status" aria-live="polite"></output>
+    {{if or .Editing (not .Name)}}<button type="button" id="save-character">{{if .Editing}}Save changes{{else}}Save character{{end}}</button>{{end}}
+    <output id="save-status" aria-live="polite">{{if .Editing}}You can change the level, equipment and spells. Name, race, class, background and ability scores are fixed after creation.{{else if not .Name}}Enter the Standard Array (15, 14, 13, 12, 10, 8) as ability scores, each once. Racial bonuses are added when you save.{{end}}</output>
   </div>
 </form>
   <script id="character-data" type="application/json">{{json .}}</script>
@@ -575,25 +575,25 @@ function spellNames() {
     .filter((spell, index, spells) => spells.indexOf(spell) === index);
 }
 
-// Select the relevant weapon or armor properties for the details panel.
-function formatEquipmentDetails(data) {
-  const details = [];
-  if (data.equipment_category?.name) details.push(data.equipment_category.name);
-  if (data.armor_class?.base !== undefined) {
-    details.push(`AC ${data.armor_class.base}${data.armor_class.dex_bonus ? ' + Dex' : ''}`);
+// Format the weapon or armor properties the server selected from the API.
+function formatEquipmentDetails(details) {
+  const parts = [];
+  if (details.category) parts.push(details.category);
+  if (details.normal_range) parts.push(`Normal range: ${details.normal_range} ft.`);
+  if (details.two_handed) parts.push('Two-handed');
+  if (details.armor_class) {
+    const dex = !details.dex_bonus ? '' : details.max_dex_bonus ? ` + Dex (max ${details.max_dex_bonus})` : ' + Dex';
+    parts.push(`AC ${details.armor_class}${dex}`);
   }
-  if (data.weapon_range) details.push(`Range: ${data.weapon_range}`);
-  if (data.range?.normal !== undefined) details.push(`Normal range: ${data.range.normal} ft.`);
-  if (data.two_handed_damage) details.push('Two-handed');
-  return details.join(' | ');
+  return parts.join(' | ');
 }
 
-// Select a spell's school and range fields for the details panel.
-function formatSpellDetails(data) {
-  const details = [];
-  if (data.school?.name) details.push(`School: ${data.school.name}`);
-  if (data.range) details.push(`Range: ${data.range}`);
-  return details.join(' | ');
+// Format a spell's school and range selected by the server.
+function formatSpellDetails(details) {
+  const parts = [];
+  if (details.school) parts.push(`School: ${details.school}`);
+  if (details.range) parts.push(`Range: ${details.range}`);
+  return parts.join(' | ');
 }
 
 // Fetch one spell or equipment record through this app's rate-limited API route.
@@ -622,7 +622,7 @@ async function enrichSheet() {
   for (const name of equipmentNames()) {
     try {
       const result = await enrichResource('equipment', name);
-      const details = formatEquipmentDetails(result.data || {});
+      const details = formatEquipmentDetails(result.details || {});
       if (details) equipmentDetails.push(`${result.name || name}: ${details}`);
     } catch (_) {
       // Unknown or empty equipment should not prevent other entries from loading.
@@ -635,7 +635,7 @@ async function enrichSheet() {
   for (const name of spellNames()) {
     try {
       const result = await enrichResource('spells', name);
-      const details = formatSpellDetails(result.data || {});
+      const details = formatSpellDetails(result.details || {});
       if (details) spellDetails.push(`${result.name || name}: ${details}`);
     } catch (_) {
       // Unknown or empty spells should not prevent other entries from loading.
@@ -648,7 +648,6 @@ async function enrichSheet() {
 function readEquipment() {
   const equipment = input('equipment')?.value || '';
   const values = { Armor: '', Shield: '', MainHand: '', OffHand: '' };
-  const supplied = { MainHand: false, OffHand: false };
   for (const line of equipment.split('\n')) {
     const match = line.match(/^\s*(armor|shield|weapon|main\s*hand|off\s*-?\s*hand)\s*:\s*(.*?)\s*$/i);
     if (!match) continue;
@@ -658,12 +657,11 @@ function readEquipment() {
       : label === 'off-hand' || label === 'offhand' ? 'OffHand'
       : 'MainHand';
     values[field] = match[2];
-    if (field === 'MainHand' || field === 'OffHand') supplied[field] = true;
   }
   character.Armor = values.Armor;
   character.Shield = values.Shield;
-  character.MainHand = supplied.MainHand ? values.MainHand : input('atkname1')?.value.trim() || '';
-  character.OffHand = supplied.OffHand ? values.OffHand : input('atkname2')?.value.trim() || '';
+  character.MainHand = values.MainHand;
+  character.OffHand = values.OffHand;
   saveCharacter();
   recalculate();
 }
@@ -833,9 +831,35 @@ for (const label of Object.keys(abilityFields)) {
   input(`${label}score`)?.addEventListener('input', recalculate);
 }
 input('classlevel')?.addEventListener('input', recalculate);
-input('equipment')?.addEventListener('change', readEquipment);
-input('atkname1')?.addEventListener('change', readEquipment);
-input('atkname2')?.addEventListener('change', readEquipment);
+// A saved sheet is read-only; "Edit character" opens the editable version.
+// While editing, only the level, equipment and spells can change: the server
+// keeps name, race, class, background and ability scores fixed after creation.
+const mode = serverCharacter?.Editing ? 'edit' : serverCharacter?.Name ? 'view' : 'create';
+// The stored class and level; `character` changes as the form is edited.
+const stored = { Class: character.Class, Level: Number(character.Level) };
+const fixedWhileEditing = ['charname', 'race', 'background',
+  ...Object.keys(abilityFields).map(label => `${label}score`)];
+for (const element of document.querySelectorAll('.charsheet input, .charsheet textarea')) {
+  const locked = mode === 'view' || (mode === 'edit' && fixedWhileEditing.includes(element.name));
+  if (!locked) continue;
+  if (element.type === 'checkbox') element.disabled = true;
+  else element.readOnly = true;
+  if (mode === 'edit') element.title = 'Fixed after creation';
+}
+
+// The attack fields name the weapons in hand; changing one updates the
+// equipment list too, so the two never disagree.
+function readWeapons() {
+  character.MainHand = input('atkname1')?.value.trim() || '';
+  character.OffHand = input('atkname2')?.value.trim() || '';
+  renderEquipment();
+  saveCharacter();
+  recalculate();
+}
+
+input('equipment')?.addEventListener('change', () => { readEquipment(); renderEquipment(); });
+input('atkname1')?.addEventListener('change', readWeapons);
+input('atkname2')?.addEventListener('change', readWeapons);
 input('spellcasting')?.addEventListener('change', readSpells);
 input('equipment')?.addEventListener('change', enrichSheet);
 input('atkname1')?.addEventListener('change', enrichSheet);
@@ -882,6 +906,20 @@ async function showCharacterBrowser() {
 
 showCharacterBrowser();
 
+// Explain what is wrong with the entered scores compared with the Standard
+// Array (15, 14, 13, 12, 10, 8, each once), or return '' when they match.
+function standardArrayProblem(scores) {
+  const remaining = [15, 14, 13, 12, 10, 8];
+  const extra = [];
+  for (const score of scores) {
+    const index = remaining.indexOf(score);
+    if (index >= 0) remaining.splice(index, 1);
+    else extra.push(score);
+  }
+  if (!extra.length) return '';
+  return `Ability scores use the Standard Array, each value once. Replace ${extra.join(', ')} with ${remaining.join(', ')}.`;
+}
+
 // Validate the form, update the local record, then create or update it on the server.
 document.getElementById('save-character')?.addEventListener('click', async () => {
   const status = document.getElementById('save-status');
@@ -902,10 +940,19 @@ document.getElementById('save-character')?.addEventListener('click', async () =>
   character.Int = Number(input('Intelligencescore')?.value || 10);
   character.Wis = Number(input('Wisdomscore')?.value || 10);
   character.Cha = Number(input('Charismascore')?.value || 10);
-  if (!serverCharacter?.Editing) {
-    const scores = [character.Str, character.Dex, character.Con, character.Int, character.Wis, character.Cha].sort((a, b) => b - a);
-    if (scores.join(',') !== '15,14,13,12,10,8') {
-      if (status) status.textContent = 'Assign 15, 14, 13, 12, 10, and 8 once each before saving.';
+  if (serverCharacter?.Editing) {
+    if (normalize(character.Class) !== normalize(stored.Class)) {
+      if (status) status.textContent = `The class can't change after creation; keep "${titleCase(stored.Class)}" and change only the level.`;
+      return;
+    }
+    if (character.Level < stored.Level) {
+      if (status) status.textContent = `The level can only go up (it is ${stored.Level} now).`;
+      return;
+    }
+  } else {
+    const problem = standardArrayProblem([character.Str, character.Dex, character.Con, character.Int, character.Wis, character.Cha]);
+    if (problem) {
+      if (status) status.textContent = problem;
       return;
     }
   }

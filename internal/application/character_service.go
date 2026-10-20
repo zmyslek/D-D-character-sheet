@@ -193,6 +193,20 @@ func (s *CharacterService) EquipShield(name, shieldName string) (*domain.Equipme
 	return s.equip(name, shieldName, (*domain.Character).EquipShield)
 }
 
+// Unequip empties one equipment slot of a character.
+func (s *CharacterService) Unequip(name, slot string) (*domain.Character, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	character, err := s.characters.GetByName(name)
+	if err != nil {
+		return nil, err
+	}
+	if err := character.Unequip(slot); err != nil {
+		return nil, err
+	}
+	return character, s.characters.Update(character)
+}
+
 func (s *CharacterService) equip(name, itemName string, put func(*domain.Character, *domain.Equipment) error) (*domain.Equipment, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

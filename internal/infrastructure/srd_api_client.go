@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"mpp-zmyslek/internal/domain"
 )
@@ -47,8 +48,7 @@ func (c *SRDAPIClient) Lookup(ctx context.Context, resource, name string) (map[s
 	if err := c.waitForTurn(ctx); err != nil {
 		return nil, err
 	}
-	slug := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "-"))
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/"+resource+"/"+url.PathEscape(slug), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/"+resource+"/"+url.PathEscape(Slug(name)), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +68,32 @@ func (c *SRDAPIClient) Lookup(ctx context.Context, resource, name string) (map[s
 		return nil, fmt.Errorf("external API returned invalid JSON: %w", err)
 	}
 	return document, nil
+}
+
+// Slug turns a spell or item name into the API's index: "Crossbow, light"
+// becomes "crossbow-light" and "Hunter's Mark" becomes "hunters-mark". The
+// rules call half plate armor "half plate"; the API calls it "half-plate-armor".
+func Slug(name string) string {
+	var slug strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(name)) {
+		switch {
+		case r == '\'':
+			continue
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			if dash && slug.Len() > 0 {
+				slug.WriteByte('-')
+			}
+			slug.WriteRune(r)
+			dash = false
+		default:
+			dash = true
+		}
+	}
+	if slug.String() == "half-plate" {
+		return "half-plate-armor"
+	}
+	return slug.String()
 }
 
 // waitForTurn holds the mutex while it waits until a full interval has passed

@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,9 +38,30 @@ func TestMain(m *testing.M) {
 			panic("build failed: " + string(out))
 		}
 	}
+	// The CLI looks up spells and items for "view"; the tests answer those
+	// lookups locally instead of calling dnd5eapi.co.
+	api := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		document, ok := cliAPIDocuments[request.URL.Path]
+		if !ok {
+			http.NotFound(response, request)
+			return
+		}
+		_, _ = response.Write([]byte(document))
+	}))
+	os.Setenv("MPP_SRD_API_URL", api.URL)
 	code := m.Run()
+	api.Close()
 	os.RemoveAll(dir)
 	os.Exit(code)
+}
+
+// cliAPIDocuments are the external API answers the CLI tests need.
+var cliAPIDocuments = map[string]string{
+	"/equipment/longsword":  `{"weapon_category":"Martial","range":{"normal":5},"properties":[{"index":"versatile"}]}`,
+	"/equipment/chain-mail": `{"armor_category":"Heavy","armor_class":{"base":16,"dex_bonus":false}}`,
+	"/equipment/shield":     `{"armor_category":"Shield","armor_class":{"base":2,"dex_bonus":false}}`,
+	"/spells/magic-missile": `{"range":"120 feet","school":{"name":"Evocation"}}`,
+	"/spells/fire-bolt":     `{"range":"120 feet","school":{"name":"Evocation"}}`,
 }
 
 // workspace creates a temp dir with the project's CSV files linked into its
@@ -220,9 +243,36 @@ func TestCLIEquip(t *testing.T) {
 
 	out, _ := cli(t, dir, "view", "-name", "Conan")
 	// Chain mail (16) + shield (+2) = 18.
-	expectContains(t, out, "Main hand: longsword", "Armor: chain mail", "Shield: shield", "Armor class: 18", "Class: fighter")
+	expectContains(t, out, "Main hand: longsword", "Armor: chain mail", "Shield: shield", "Armor class: 18", "Class: fighter",
+		// Details from the external API.
+		"Equipment details:", "  longsword: category Martial, normal range 5 ft.",
+		"  chain mail: category Heavy, armor class 16, no dex bonus", "  shield: category Shield, armor class 2, no dex bonus")
 	if strings.Contains(out, "Spell") {
 		t.Errorf("a fighter must not print spell information:\n%s", out)
+	}
+	// Fighter skills: the first two class options (acrobatics, animal
+	// handling) and the acolyte's insight and religion. The CLI's default
+	// scores give Str 11 (+0) and Dex 1 (-5) after the human bonus.
+	expectContains(t, out, "Skill modifiers:", "  acrobatics: -3", "  athletics: +0", "  stealth: -5", "  insight: -3")
+
+	for _, tt := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"unequip", "-slot", "armor"}, "name is required"},
+		{[]string{"unequip", "-name", "Nobody", "-slot", "armor"}, "not found"},
+		{[]string{"unequip", "-name", "Conan", "-slot", "head"}, "slot must be"},
+		{[]string{"unequip", "-name", "Conan", "-slot", "armor"}, "Unequipped armor"},
+		{[]string{"unequip", "-name", "Conan", "-slot", "main hand"}, "Unequipped main hand"},
+	} {
+		out, _ := cli(t, dir, tt.args...)
+		expectContains(t, out, tt.want)
+	}
+	out, _ = cli(t, dir, "view", "-name", "Conan")
+	// No armor: 10 + Dex (-5) + shield (+2) = 7.
+	expectContains(t, out, "Armor class: 7", "Shield: shield")
+	if strings.Contains(out, "Main hand") || strings.Contains(out, "Armor: ") {
+		t.Errorf("unequipped items are still shown:\n%s", out)
 	}
 }
 
@@ -253,6 +303,22 @@ func TestCLISpells(t *testing.T) {
 			expectContains(t, out, tt.want)
 		})
 	}
+
+	out, _ := cli(t, dir, "view", "-name", "Mira")
+	expectContains(t, out, "Spells:", "  magic missile (prepared): school Evocation, range 120 feet",
+		"  fire bolt (prepared): school Evocation, range 120 feet")
+	out, _ = cli(t, dir, "view", "-name", "Sora")
+	expectContains(t, out, "  fire bolt (known): school Evocation, range 120 feet")
+}
+
+func TestCLIViewWithoutExternalAPI(t *testing.T) {
+	dir := workspace(t)
+	seedCLI(t, dir)
+	cli(t, dir, "equip", "-name", "Conan", "-weapon", "club", "-slot", "main hand")
+	t.Setenv("MPP_SRD_API_URL", "http://127.0.0.1:1")
+	out, _ := cli(t, dir, "view", "-name", "Conan")
+	// The sheet is still printed; only the details are missing.
+	expectContains(t, out, "Main hand: club", "Armor class:", "  club: details unavailable")
 }
 
 func TestCLIFlagParseErrorsReturnQuietly(t *testing.T) {

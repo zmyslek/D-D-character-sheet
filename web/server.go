@@ -62,6 +62,7 @@ type characterView struct {
 	SpellAbility         string
 	SpellSaveDC          int
 	SpellAttack          int
+	SkillModifiers       map[string]int
 	Editing              bool
 	// SpellcastingByClass holds, per class and level 0-20, the domain's
 	// spellcasting rules, so the sheet's script can update slots when the
@@ -359,7 +360,10 @@ func (server *Server) enrich(response http.ResponseWriter, request *http.Request
 		writeJSONError(response, err, status)
 		return
 	}
-	writeJSON(response, map[string]any{"name": data["name"], "resource": resource, "data": data})
+	writeJSON(response, map[string]any{
+		"name": data["name"], "resource": resource,
+		"details": application.DetailsFrom(resource, data), "data": data,
+	})
 }
 
 // characterEnrichment looks up all spells and items of one character at once.
@@ -441,6 +445,7 @@ func makeCharacterView(character *characterdomain.Character) characterView {
 		SpellAbility:         ability,
 		SpellSaveDC:          character.SpellSaveDC(),
 		SpellAttack:          character.SpellAttackBonus(),
+		SkillModifiers:       character.SkillModifiers(),
 		SpellcastingByClass:  spellcastingByClass,
 	}
 }

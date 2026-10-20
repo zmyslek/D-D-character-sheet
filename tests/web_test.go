@@ -275,3 +275,19 @@ func TestSheetSpellcastingComesFromTheDomain(t *testing.T) {
 		t.Errorf("wizard sheet = %v %v", mira["CanCastSpells"], mira["SpellAbility"])
 	}
 }
+
+// A saved sheet is read-only: only the edit page and the creation page have a
+// save button. A save button on the read-only sheet would post the character
+// again as a new one, with scores that already include racial bonuses.
+func TestSheetSaveButtonOnlyWhenCreatingOrEditing(t *testing.T) {
+	handler := newWebHandler(t)
+	if got := request(handler, http.MethodPost, "/api/characters", miraJSON); got.Code != http.StatusCreated {
+		t.Fatalf("create = %d %s", got.Code, got.Body)
+	}
+	for target, want := range map[string]bool{"/characters/new": true, "/characters/Mira": false, "/characters/Mira/edit": true} {
+		page := request(handler, http.MethodGet, target, "")
+		if got := strings.Contains(page.Body.String(), `<button type="button" id="save-character">`); page.Code != http.StatusOK || got != want {
+			t.Errorf("%s: status %d, save button %v, want %v", target, page.Code, got, want)
+		}
+	}
+}

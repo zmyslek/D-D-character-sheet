@@ -346,3 +346,52 @@ func TestSpells(t *testing.T) {
 		t.Error("RemoveSpells should empty both lists")
 	}
 }
+
+func TestSkillModifiers(t *testing.T) {
+	// Level 5: proficiency bonus +3. Wis 10 (+0), Dex 14 (+2), Cha 8 (-1).
+	c := character(t, "fighter", 5, standardScores)
+	c.AddSkillProficiencies([]string{"perception", "stealth"}, 2)
+	tests := []struct {
+		skill string
+		want  int
+	}{
+		{"perception", 3}, {"stealth", 5}, {"acrobatics", 2}, {"athletics", 2},
+		{"Persuasion", -1}, {"sleight of hand", 2}, {"arcana", 1},
+	}
+	for _, tt := range tests {
+		if got := c.SkillModifier(tt.skill); got != tt.want {
+			t.Errorf("SkillModifier(%q) = %d, want %d", tt.skill, got, tt.want)
+		}
+	}
+	modifiers := c.SkillModifiers()
+	if len(modifiers) != 18 || modifiers["stealth"] != 5 {
+		t.Errorf("SkillModifiers = %v", modifiers)
+	}
+	if got := c.PassivePerception(); got != 13 {
+		t.Errorf("PassivePerception = %d, want 13", got)
+	}
+}
+
+func TestUnequip(t *testing.T) {
+	c := character(t, "fighter", 1, standardScores)
+	if err := c.EquipWeapon(domain.NewEquipment("Dagger", "Weapon"), "main hand"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.EquipArmor(domain.NewEquipment("Chain Mail", "Armor")); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.EquipShield(domain.NewEquipment("Shield", "Armor")); err != nil {
+		t.Fatal(err)
+	}
+	for _, slot := range []string{"Main Hand", "armor", "shield"} {
+		if err := c.Unequip(slot); err != nil {
+			t.Errorf("Unequip(%q) = %v", slot, err)
+		}
+	}
+	if c.MainHand() != "" || c.Armor() != "" || c.Shield() != "" || c.ArmorClass() != 12 {
+		t.Errorf("slots not emptied: %+v, AC %d", c.Data(), c.ArmorClass())
+	}
+	if err := c.Unequip("head"); err == nil {
+		t.Error("Unequip(head) should fail")
+	}
+}
