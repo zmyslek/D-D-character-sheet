@@ -758,6 +758,13 @@ function spellcastingStats(rules, proficiency, scores) {
   return `Spellcasting: ${titleCase(rules.Ability)} | Save DC ${8 + proficiency + spellModifier} | Attack ${formatModifier(proficiency + spellModifier)}`;
 }
 
+// Format the encumbrance condition the server calculated from the saved
+// equipment; empty on the creation form, where nothing is carried yet.
+function encumbranceSummary(encumbrance) {
+  if (!encumbrance?.Condition) return '';
+  return `Condition: ${encumbrance.Condition} (${encumbrance.CarriedWeight} lb carried, capacity ${encumbrance.Capacity} lb)`;
+}
+
 // Format the spell slots, with level 0 shown as the number of cantrips known.
 function spellSlotSummary(rules) {
   return Object.entries(rules.Slots || {})
@@ -819,6 +826,7 @@ function recalculate() {
   const features = input('features');
   if (features) {
     features.value = [
+      encumbranceSummary(character.Encumbrance),
       listValue(character.KnownSpells).length ? `Known spells: ${listValue(character.KnownSpells).join(', ')}` : '',
       listValue(character.PreparedSpells).length ? `Prepared spells: ${listValue(character.PreparedSpells).join(', ')}` : '',
       spellcastingStats(rules, proficiency, scores),

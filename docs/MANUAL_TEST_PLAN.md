@@ -67,3 +67,19 @@ Run in an empty directory containing `data/`.
 
 The behaviour behind B-01 – B-07 is covered by the automated HTTP tests in
 `tests/web_test.go`; the browser tests check the page script and layout.
+
+## D. Exam feature 1 – encumbrance
+
+The exam's examples: a level 1 halfling rogue with Str 8 (capacity
+20 + 2 × (−1) = 18 lb) and Dex 15. SRD weights: shield 6 lb, studded leather
+armor 13 lb, heavy crossbow 18 lb. Executed on 2026-10-27 in an empty
+directory with a copy of `data/*.csv`, `MPP_SRD_API_URL=http://127.0.0.1:1`
+(offline).
+
+| ID | Objective | Steps | Expected result | Actual result | Status |
+|---|---|---|---|---|---|
+| E-01 | No items, then a shield | `mpp create -name Pip -race halfling -class rogue -str 8 -dex 15`; `mpp view -name Pip -full`; `mpp equip -name Pip -shield shield`; view again | `STR: 8 (-1)`; `Condition: none (0 lb carried, capacity 18 lb)`; then `Condition: none (6 lb carried, capacity 18 lb)` | as expected | Pass |
+| E-02 | Shield and studded leather armor | `mpp equip -name Pip -armor "studded leather armor"`; view | `Condition: encumbered (19 lb carried, capacity 18 lb)` | as expected | Pass |
+| E-03 | Shield, armor and a heavy crossbow | `mpp equip -name Pip -weapon "crossbow, heavy" -slot "main hand"`; view | `Condition: heavily encumbered (37 lb carried, capacity 18 lb)` | as expected | Pass |
+| E-04 | Plain `view` is unchanged | `mpp view -name Pip` | no `Condition` line (the CodeGrade output stays identical) | as expected; also `TestCLIViewExactOutput` | Pass |
+| E-05 | Shown on the sheet | `mpp serve`, open `/characters/Pip` | "Features & Traits" starts with `Condition: heavily encumbered (37 lb carried, capacity 18 lb)` | – | Not executed (the page data is checked by `TestSheetShowsEncumbrance`) |

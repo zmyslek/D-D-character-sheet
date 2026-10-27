@@ -26,14 +26,15 @@ func newService(t *testing.T) (*application.CharacterService, *application.Chara
 
 func servicesFor(file string, resources application.ResourceLookup) (*application.CharacterService, *application.CharacterQueries) {
 	characters := infrastructure.NewJSONCharacterRepository(file)
+	equipment := infrastructure.NewCSVEquipmentRepository("../data/5e-SRD-Equipment.csv")
 	return application.NewCharacterService(
 			characters,
 			infrastructure.NewCSVClassRepository("../data/Classes.csv"),
 			infrastructure.NewCSVRaceAbilityRepository("../data/RaceAbilityBonuses.csv"),
-			infrastructure.NewCSVEquipmentRepository("../data/5e-SRD-Equipment.csv"),
+			equipment,
 			infrastructure.NewCSVSpellsRepository("../data/5e-SRD-Spells.csv"),
 		),
-		application.NewCharacterQueries(characters, resources)
+		application.NewCharacterQueries(characters, equipment, resources)
 }
 
 func wizardRequest(name string) application.CreateRequest {

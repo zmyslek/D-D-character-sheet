@@ -44,15 +44,16 @@ type app struct {
 func newApp() app {
 	dataDir := envOr("MPP_DATA_DIR", "data")
 	characters := infrastructure.NewJSONCharacterRepository(envOr("MPP_CHARACTERS_FILE", filepath.Join(dataDir, "characters.json")))
+	equipment := infrastructure.NewCSVEquipmentRepository(filepath.Join(dataDir, "5e-SRD-Equipment.csv"))
 	return app{
 		commands: application.NewCharacterService(
 			characters,
 			infrastructure.NewCSVClassRepository(filepath.Join(dataDir, "Classes.csv")),
 			infrastructure.NewCSVRaceAbilityRepository(filepath.Join(dataDir, "RaceAbilityBonuses.csv")),
-			infrastructure.NewCSVEquipmentRepository(filepath.Join(dataDir, "5e-SRD-Equipment.csv")),
+			equipment,
 			infrastructure.NewCSVSpellsRepository(filepath.Join(dataDir, "5e-SRD-Spells.csv")),
 		),
-		queries: application.NewCharacterQueries(characters,
+		queries: application.NewCharacterQueries(characters, equipment,
 			infrastructure.NewSRDAPIClient(envOr("MPP_SRD_API_URL", infrastructure.DefaultSRDAPIURL))),
 	}
 }
@@ -171,8 +172,8 @@ func runCreate(args []string) int {
 }
 
 // runView prints one saved character's calculated sheet. The plain output is
-// fixed (the graders compare it exactly); -full adds the skill modifiers and
-// the spell and equipment details from the external API.
+// fixed (the graders compare it exactly); -full adds the skill modifiers, the
+// encumbrance condition and the spell and equipment details from the external API.
 func runView(args []string) int {
 	flags := flag.NewFlagSet("view", flag.ContinueOnError)
 	name := flags.String("name", "", nameFlagUsage)
@@ -193,9 +194,22 @@ func runView(args []string) int {
 	printCharacter(character)
 	if *full {
 		printSkillModifiers(character)
+		printEncumbrance(queries, character)
 		printEnrichment(queries, character)
 	}
 	return 0
+}
+
+// printEncumbrance prints the condition the equipped items give, for example
+// "Condition: encumbered (19 lb carried, capacity 18 lb)".
+func printEncumbrance(queries *application.CharacterQueries, character *characterdomain.Character) {
+	encumbrance, err := queries.Encumbrance(character)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Printf("Condition: %s (%g lb carried, capacity %d lb)\n",
+		encumbrance.Condition, encumbrance.CarriedWeight, encumbrance.Capacity)
 }
 
 // printSkillModifiers prints the modifier of every SRD skill.

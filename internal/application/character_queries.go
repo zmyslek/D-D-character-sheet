@@ -29,13 +29,15 @@ type ResourceLookup interface {
 // latest saved command (no eventual consistency).
 type CharacterQueries struct {
 	characters CharacterReader
+	equipment  domain.EquipmentRepository
 	resources  ResourceLookup
 }
 
-// NewCharacterQueries creates the query service. resources may be nil when no
-// external lookups are needed (the CLI).
-func NewCharacterQueries(characters CharacterReader, resources ResourceLookup) *CharacterQueries {
-	return &CharacterQueries{characters: characters, resources: resources}
+// NewCharacterQueries creates the query service. The equipment list gives the
+// item weights for Encumbrance. resources may be nil when no external lookups
+// are needed (the CLI).
+func NewCharacterQueries(characters CharacterReader, equipment domain.EquipmentRepository, resources ResourceLookup) *CharacterQueries {
+	return &CharacterQueries{characters: characters, equipment: equipment, resources: resources}
 }
 
 // GetAll returns every character.
@@ -46,6 +48,22 @@ func (q *CharacterQueries) GetAll() ([]*domain.Character, error) {
 // Get returns one character by name.
 func (q *CharacterQueries) Get(name string) (*domain.Character, error) {
 	return q.characters.GetByName(name)
+}
+
+// Encumbrance looks up the weight of every item the character has equipped
+// and returns the condition that weight gives (domain.EncumbranceFor). It
+// takes the character instead of a name, so a caller that already loaded it
+// does not read the repository twice.
+func (q *CharacterQueries) Encumbrance(character *domain.Character) (domain.Encumbrance, error) {
+	var carried []*domain.Equipment
+	for _, name := range character.EquippedItems() {
+		item, err := q.equipment.GetByName(name)
+		if err != nil {
+			return domain.Encumbrance{}, err
+		}
+		carried = append(carried, item)
+	}
+	return character.Encumbrance(carried), nil
 }
 
 // Lookup returns the external details of one spell ("spells") or item ("equipment").

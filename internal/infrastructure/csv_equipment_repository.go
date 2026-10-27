@@ -3,8 +3,10 @@ package infrastructure
 import (
 	"encoding/csv"
 	"fmt"
+	"math"
 	domain "mpp-zmyslek/internal/domain"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -43,11 +45,32 @@ func (r *CSVEquipmentRepository) GetByName(name string) (*domain.Equipment, erro
 			if normalizeEquipmentName(name) == halfPlate {
 				equipmentName = halfPlate
 			}
-			return domain.NewEquipment(equipmentName, row[1]), nil
+			weight, err := parseWeight(row)
+			if err != nil {
+				return nil, fmt.Errorf("invalid weight on equipment row %d: %w", index+1, err)
+			}
+			return domain.NewEquipment(equipmentName, row[1]).WithWeight(weight), nil
 		}
 	}
 
 	return nil, fmt.Errorf("equipment %q not found", name)
+}
+
+// parseWeight reads the optional third column, the weight in pounds. A
+// missing or empty value means the SRD lists no weight (packs, mounts,
+// vehicles), which counts as 0.
+func parseWeight(row []string) (float64, error) {
+	if len(row) < 3 || strings.TrimSpace(row[2]) == "" {
+		return 0, nil
+	}
+	weight, err := strconv.ParseFloat(strings.TrimSpace(row[2]), 64)
+	if err != nil || math.IsNaN(weight) || math.IsInf(weight, 0) {
+		return 0, fmt.Errorf("%q is not a number", row[2])
+	}
+	if weight < 0 {
+		return 0, fmt.Errorf("%q is negative", row[2])
+	}
+	return weight, nil
 }
 
 // normalizeEquipmentName handles aliases used by the equipment CSV and rules.

@@ -1,238 +1,238 @@
-name,type
-Club,Weapon
-Dagger,Weapon
-Greatclub,Weapon
-Handaxe,Weapon
-Javelin,Weapon
-Light hammer,Weapon
-Mace,Weapon
-Quarterstaff,Weapon
-Sickle,Weapon
-Spear,Weapon
-"Crossbow, light",Weapon
-Dart,Weapon
-Shortbow,Weapon
-Sling,Weapon
-Battleaxe,Weapon
-Flail,Weapon
-Glaive,Weapon
-Greataxe,Weapon
-Greatsword,Weapon
-Halberd,Weapon
-Lance,Weapon
-Longsword,Weapon
-Maul,Weapon
-Morningstar,Weapon
-Pike,Weapon
-Rapier,Weapon
-Scimitar,Weapon
-Shortsword,Weapon
-Trident,Weapon
-War pick,Weapon
-Warhammer,Weapon
-Whip,Weapon
-Blowgun,Weapon
-"Crossbow, hand",Weapon
-"Crossbow, heavy",Weapon
-Longbow,Weapon
-Net,Weapon
-Padded Armor,Armor
-Leather Armor,Armor
-Studded Leather Armor,Armor
-Hide Armor,Armor
-Chain Shirt,Armor
-Scale Mail,Armor
-Breastplate,Armor
-Half Plate Armor,Armor
-Ring Mail,Armor
-Chain Mail,Armor
-Splint Armor,Armor
-Plate Armor,Armor
-Shield,Armor
-Abacus,Adventuring Gear
-Acid (vial),Adventuring Gear
-Alchemist's fire (flask),Adventuring Gear
-Alms box,Adventuring Gear
-Arrow,Adventuring Gear
-Block of incense,Adventuring Gear
-Blowgun needle,Adventuring Gear
-Censer,Adventuring Gear
-Crossbow bolt,Adventuring Gear
-Sling bullet,Adventuring Gear
-Amulet,Adventuring Gear
-Antitoxin (vial),Adventuring Gear
-Crystal,Adventuring Gear
-Orb,Adventuring Gear
-Rod,Adventuring Gear
-Staff,Adventuring Gear
-Wand,Adventuring Gear
-Backpack,Adventuring Gear
-"Ball bearings (bag of 1,000)",Adventuring Gear
-Barrel,Adventuring Gear
-Basket,Adventuring Gear
-Bedroll,Adventuring Gear
-Bell,Adventuring Gear
-Blanket,Adventuring Gear
-Block and tackle,Adventuring Gear
-Book,Adventuring Gear
-"Bottle, glass",Adventuring Gear
-Bucket,Adventuring Gear
-Caltrops,Adventuring Gear
-Candle,Adventuring Gear
-"Case, crossbow bolt",Adventuring Gear
-"Case, map or scroll",Adventuring Gear
-Chain (10 feet),Adventuring Gear
-Chalk (1 piece),Adventuring Gear
-Chest,Adventuring Gear
-"Clothes, common",Adventuring Gear
-"Clothes, costume",Adventuring Gear
-"Clothes, fine",Adventuring Gear
-"Clothes, traveler's",Adventuring Gear
-Component pouch,Adventuring Gear
-Crowbar,Adventuring Gear
-Sprig of mistletoe,Adventuring Gear
-Totem,Adventuring Gear
-Wooden staff,Adventuring Gear
-Yew wand,Adventuring Gear
-Emblem,Adventuring Gear
-Fishing tackle,Adventuring Gear
-Flask or tankard,Adventuring Gear
-Grappling hook,Adventuring Gear
-Hammer,Adventuring Gear
-"Hammer, sledge",Adventuring Gear
-Holy water (flask),Adventuring Gear
-Hourglass,Adventuring Gear
-Hunting trap,Adventuring Gear
-Ink (1 ounce bottle),Adventuring Gear
-Ink pen,Adventuring Gear
-Jug or pitcher,Adventuring Gear
-Climber's Kit,Adventuring Gear
-Disguise Kit,Adventuring Gear
-Forgery Kit,Adventuring Gear
-Herbalism Kit,Adventuring Gear
-Healer's Kit,Adventuring Gear
-Mess Kit,Adventuring Gear
-Poisoner's Kit,Adventuring Gear
-Ladder (10-foot),Adventuring Gear
-Lamp,Adventuring Gear
-"Lantern, bullseye",Adventuring Gear
-"Lantern, hooded",Adventuring Gear
-Little bag of sand,Adventuring Gear
-Lock,Adventuring Gear
-Magnifying glass,Adventuring Gear
-Manacles,Adventuring Gear
-"Mirror, steel",Adventuring Gear
-Oil (flask),Adventuring Gear
-Paper (one sheet),Adventuring Gear
-Parchment (one sheet),Adventuring Gear
-Perfume (vial),Adventuring Gear
-"Pick, miner's",Adventuring Gear
-Piton,Adventuring Gear
-"Poison, basic (vial)",Adventuring Gear
-Pole (10-foot),Adventuring Gear
-"Pot, iron",Adventuring Gear
-Pouch,Adventuring Gear
-Quiver,Adventuring Gear
-"Ram, portable",Adventuring Gear
-Rations (1 day),Adventuring Gear
-Reliquary,Adventuring Gear
-Robes,Adventuring Gear
-"Rope, hempen (50 feet)",Adventuring Gear
-"Rope, silk (50 feet)",Adventuring Gear
-Sack,Adventuring Gear
-"Scale, merchant's",Adventuring Gear
-Sealing wax,Adventuring Gear
-Shovel,Adventuring Gear
-Signal whistle,Adventuring Gear
-Signet ring,Adventuring Gear
-Small knife,Adventuring Gear
-Soap,Adventuring Gear
-Spellbook,Adventuring Gear
-"Spike, iron",Adventuring Gear
-Spyglass,Adventuring Gear
-String (10 feet),Adventuring Gear
-"Tent, two-person",Adventuring Gear
-Tinderbox,Adventuring Gear
-Torch,Adventuring Gear
-Vestments,Adventuring Gear
-Vial,Adventuring Gear
-Waterskin,Adventuring Gear
-Whetstone,Adventuring Gear
-Burglar's Pack,Adventuring Gear
-Diplomat's Pack,Adventuring Gear
-Dungeoneer's Pack,Adventuring Gear
-Entertainer's Pack,Adventuring Gear
-Explorer's Pack,Adventuring Gear
-Priest's Pack,Adventuring Gear
-Scholar's Pack,Adventuring Gear
-Alchemist's Supplies,Tools
-Brewer's Supplies,Tools
-Calligrapher's Supplies,Tools
-Carpenter's Tools,Tools
-Cartographer's Tools,Tools
-Cobbler's Tools,Tools
-Cook's utensils,Tools
-Glassblower's Tools,Tools
-Jeweler's Tools,Tools
-Leatherworker's Tools,Tools
-Mason's Tools,Tools
-Painter's Supplies,Tools
-Potter's Tools,Tools
-Smith's Tools,Tools
-Tinker's Tools,Tools
-Weaver's Tools,Tools
-Woodcarver's Tools,Tools
-Dice Set,Tools
-Playing Card Set,Tools
-Bagpipes,Tools
-Drum,Tools
-Dulcimer,Tools
-Flute,Tools
-Lute,Tools
-Lyre,Tools
-Horn,Tools
-Pan flute,Tools
-Shawm,Tools
-Viol,Tools
-Navigator's Tools,Tools
-Thieves' Tools,Tools
-Camel,Mounts and Vehicles
-Donkey,Mounts and Vehicles
-Mule,Mounts and Vehicles
-Elephant,Mounts and Vehicles
-"Horse, draft",Mounts and Vehicles
-"Horse, riding",Mounts and Vehicles
-Mastiff,Mounts and Vehicles
-Pony,Mounts and Vehicles
-Warhorse,Mounts and Vehicles
-Barding: Padded,Mounts and Vehicles
-Barding: Leather,Mounts and Vehicles
-Barding: Studded Leather,Mounts and Vehicles
-Barding: Hide,Mounts and Vehicles
-Barding: Chain shirt,Mounts and Vehicles
-Barding: Scale mail,Mounts and Vehicles
-Barding: Breastplate,Mounts and Vehicles
-Barding: Half plate,Mounts and Vehicles
-Barding: Ring mail,Mounts and Vehicles
-Barding: Chain mail,Mounts and Vehicles
-Barding: Splint,Mounts and Vehicles
-Barding: Plate,Mounts and Vehicles
-Bit and bridle,Mounts and Vehicles
-Carriage,Mounts and Vehicles
-Cart,Mounts and Vehicles
-Chariot,Mounts and Vehicles
-Animal Feed (1 day),Mounts and Vehicles
-"Saddle, Exotic",Mounts and Vehicles
-"Saddle, Military",Mounts and Vehicles
-"Saddle, Pack",Mounts and Vehicles
-"Saddle, Riding",Mounts and Vehicles
-Saddlebags,Mounts and Vehicles
-Sled,Mounts and Vehicles
-Stabling (1 day),Mounts and Vehicles
-Wagon,Mounts and Vehicles
-Galley,Mounts and Vehicles
-Keelboat,Mounts and Vehicles
-Longship,Mounts and Vehicles
-Rowboat,Mounts and Vehicles
-Sailing ship,Mounts and Vehicles
-Warship,Mounts and Vehicles
+name,type,weight
+Club,Weapon,2
+Dagger,Weapon,1
+Greatclub,Weapon,10
+Handaxe,Weapon,2
+Javelin,Weapon,2
+Light hammer,Weapon,2
+Mace,Weapon,4
+Quarterstaff,Weapon,4
+Sickle,Weapon,2
+Spear,Weapon,3
+"Crossbow, light",Weapon,5
+Dart,Weapon,0.25
+Shortbow,Weapon,2
+Sling,Weapon,0
+Battleaxe,Weapon,4
+Flail,Weapon,2
+Glaive,Weapon,6
+Greataxe,Weapon,7
+Greatsword,Weapon,6
+Halberd,Weapon,6
+Lance,Weapon,6
+Longsword,Weapon,3
+Maul,Weapon,10
+Morningstar,Weapon,4
+Pike,Weapon,18
+Rapier,Weapon,2
+Scimitar,Weapon,3
+Shortsword,Weapon,2
+Trident,Weapon,4
+War pick,Weapon,2
+Warhammer,Weapon,2
+Whip,Weapon,3
+Blowgun,Weapon,1
+"Crossbow, hand",Weapon,3
+"Crossbow, heavy",Weapon,18
+Longbow,Weapon,2
+Net,Weapon,3
+Padded Armor,Armor,8
+Leather Armor,Armor,10
+Studded Leather Armor,Armor,13
+Hide Armor,Armor,12
+Chain Shirt,Armor,20
+Scale Mail,Armor,45
+Breastplate,Armor,20
+Half Plate Armor,Armor,40
+Ring Mail,Armor,40
+Chain Mail,Armor,55
+Splint Armor,Armor,60
+Plate Armor,Armor,65
+Shield,Armor,6
+Abacus,Adventuring Gear,2
+Acid (vial),Adventuring Gear,1
+Alchemist's fire (flask),Adventuring Gear,1
+Alms box,Adventuring Gear,0
+Arrow,Adventuring Gear,1
+Block of incense,Adventuring Gear,0
+Blowgun needle,Adventuring Gear,1
+Censer,Adventuring Gear,0
+Crossbow bolt,Adventuring Gear,1.5
+Sling bullet,Adventuring Gear,1.5
+Amulet,Adventuring Gear,1
+Antitoxin (vial),Adventuring Gear,0
+Crystal,Adventuring Gear,1
+Orb,Adventuring Gear,3
+Rod,Adventuring Gear,2
+Staff,Adventuring Gear,4
+Wand,Adventuring Gear,1
+Backpack,Adventuring Gear,5
+"Ball bearings (bag of 1,000)",Adventuring Gear,2
+Barrel,Adventuring Gear,70
+Basket,Adventuring Gear,2
+Bedroll,Adventuring Gear,7
+Bell,Adventuring Gear,0
+Blanket,Adventuring Gear,3
+Block and tackle,Adventuring Gear,5
+Book,Adventuring Gear,5
+"Bottle, glass",Adventuring Gear,2
+Bucket,Adventuring Gear,2
+Caltrops,Adventuring Gear,2
+Candle,Adventuring Gear,0
+"Case, crossbow bolt",Adventuring Gear,1
+"Case, map or scroll",Adventuring Gear,1
+Chain (10 feet),Adventuring Gear,10
+Chalk (1 piece),Adventuring Gear,0
+Chest,Adventuring Gear,25
+"Clothes, common",Adventuring Gear,3
+"Clothes, costume",Adventuring Gear,4
+"Clothes, fine",Adventuring Gear,6
+"Clothes, traveler's",Adventuring Gear,4
+Component pouch,Adventuring Gear,2
+Crowbar,Adventuring Gear,5
+Sprig of mistletoe,Adventuring Gear,0
+Totem,Adventuring Gear,0
+Wooden staff,Adventuring Gear,4
+Yew wand,Adventuring Gear,1
+Emblem,Adventuring Gear,0
+Fishing tackle,Adventuring Gear,4
+Flask or tankard,Adventuring Gear,1
+Grappling hook,Adventuring Gear,4
+Hammer,Adventuring Gear,3
+"Hammer, sledge",Adventuring Gear,10
+Holy water (flask),Adventuring Gear,1
+Hourglass,Adventuring Gear,1
+Hunting trap,Adventuring Gear,25
+Ink (1 ounce bottle),Adventuring Gear,0
+Ink pen,Adventuring Gear,0
+Jug or pitcher,Adventuring Gear,4
+Climber's Kit,Adventuring Gear,12
+Disguise Kit,Adventuring Gear,3
+Forgery Kit,Adventuring Gear,5
+Herbalism Kit,Adventuring Gear,3
+Healer's Kit,Adventuring Gear,3
+Mess Kit,Adventuring Gear,1
+Poisoner's Kit,Adventuring Gear,2
+Ladder (10-foot),Adventuring Gear,25
+Lamp,Adventuring Gear,1
+"Lantern, bullseye",Adventuring Gear,2
+"Lantern, hooded",Adventuring Gear,2
+Little bag of sand,Adventuring Gear,0
+Lock,Adventuring Gear,1
+Magnifying glass,Adventuring Gear,0
+Manacles,Adventuring Gear,6
+"Mirror, steel",Adventuring Gear,0.5
+Oil (flask),Adventuring Gear,1
+Paper (one sheet),Adventuring Gear,0
+Parchment (one sheet),Adventuring Gear,0
+Perfume (vial),Adventuring Gear,0
+"Pick, miner's",Adventuring Gear,10
+Piton,Adventuring Gear,0.25
+"Poison, basic (vial)",Adventuring Gear,0
+Pole (10-foot),Adventuring Gear,7
+"Pot, iron",Adventuring Gear,10
+Pouch,Adventuring Gear,1
+Quiver,Adventuring Gear,1
+"Ram, portable",Adventuring Gear,35
+Rations (1 day),Adventuring Gear,2
+Reliquary,Adventuring Gear,2
+Robes,Adventuring Gear,4
+"Rope, hempen (50 feet)",Adventuring Gear,10
+"Rope, silk (50 feet)",Adventuring Gear,5
+Sack,Adventuring Gear,0.5
+"Scale, merchant's",Adventuring Gear,3
+Sealing wax,Adventuring Gear,0
+Shovel,Adventuring Gear,5
+Signal whistle,Adventuring Gear,0
+Signet ring,Adventuring Gear,0
+Small knife,Adventuring Gear,0
+Soap,Adventuring Gear,0
+Spellbook,Adventuring Gear,3
+"Spike, iron",Adventuring Gear,5
+Spyglass,Adventuring Gear,1
+String (10 feet),Adventuring Gear,0
+"Tent, two-person",Adventuring Gear,20
+Tinderbox,Adventuring Gear,1
+Torch,Adventuring Gear,1
+Vestments,Adventuring Gear,0
+Vial,Adventuring Gear,0
+Waterskin,Adventuring Gear,5
+Whetstone,Adventuring Gear,1
+Burglar's Pack,Adventuring Gear,
+Diplomat's Pack,Adventuring Gear,
+Dungeoneer's Pack,Adventuring Gear,
+Entertainer's Pack,Adventuring Gear,
+Explorer's Pack,Adventuring Gear,
+Priest's Pack,Adventuring Gear,
+Scholar's Pack,Adventuring Gear,
+Alchemist's Supplies,Tools,8
+Brewer's Supplies,Tools,9
+Calligrapher's Supplies,Tools,5
+Carpenter's Tools,Tools,6
+Cartographer's Tools,Tools,6
+Cobbler's Tools,Tools,5
+Cook's utensils,Tools,8
+Glassblower's Tools,Tools,5
+Jeweler's Tools,Tools,2
+Leatherworker's Tools,Tools,5
+Mason's Tools,Tools,8
+Painter's Supplies,Tools,5
+Potter's Tools,Tools,3
+Smith's Tools,Tools,8
+Tinker's Tools,Tools,10
+Weaver's Tools,Tools,5
+Woodcarver's Tools,Tools,5
+Dice Set,Tools,0
+Playing Card Set,Tools,0
+Bagpipes,Tools,6
+Drum,Tools,3
+Dulcimer,Tools,10
+Flute,Tools,1
+Lute,Tools,2
+Lyre,Tools,2
+Horn,Tools,2
+Pan flute,Tools,2
+Shawm,Tools,1
+Viol,Tools,1
+Navigator's Tools,Tools,2
+Thieves' Tools,Tools,1
+Camel,Mounts and Vehicles,
+Donkey,Mounts and Vehicles,
+Mule,Mounts and Vehicles,
+Elephant,Mounts and Vehicles,
+"Horse, draft",Mounts and Vehicles,
+"Horse, riding",Mounts and Vehicles,
+Mastiff,Mounts and Vehicles,
+Pony,Mounts and Vehicles,
+Warhorse,Mounts and Vehicles,
+Barding: Padded,Mounts and Vehicles,16
+Barding: Leather,Mounts and Vehicles,20
+Barding: Studded Leather,Mounts and Vehicles,26
+Barding: Hide,Mounts and Vehicles,24
+Barding: Chain shirt,Mounts and Vehicles,40
+Barding: Scale mail,Mounts and Vehicles,90
+Barding: Breastplate,Mounts and Vehicles,40
+Barding: Half plate,Mounts and Vehicles,80
+Barding: Ring mail,Mounts and Vehicles,80
+Barding: Chain mail,Mounts and Vehicles,110
+Barding: Splint,Mounts and Vehicles,120
+Barding: Plate,Mounts and Vehicles,130
+Bit and bridle,Mounts and Vehicles,1
+Carriage,Mounts and Vehicles,600
+Cart,Mounts and Vehicles,200
+Chariot,Mounts and Vehicles,100
+Animal Feed (1 day),Mounts and Vehicles,10
+"Saddle, Exotic",Mounts and Vehicles,50
+"Saddle, Military",Mounts and Vehicles,30
+"Saddle, Pack",Mounts and Vehicles,15
+"Saddle, Riding",Mounts and Vehicles,25
+Saddlebags,Mounts and Vehicles,8
+Sled,Mounts and Vehicles,300
+Stabling (1 day),Mounts and Vehicles,0
+Wagon,Mounts and Vehicles,400
+Galley,Mounts and Vehicles,
+Keelboat,Mounts and Vehicles,
+Longship,Mounts and Vehicles,
+Rowboat,Mounts and Vehicles,
+Sailing ship,Mounts and Vehicles,
+Warship,Mounts and Vehicles,

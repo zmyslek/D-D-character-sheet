@@ -25,6 +25,9 @@ Terms come from the SRD 5.1 and the assignment README.
 | Armor / shield slot | Worn body armor; carried shield (+2 AC) | Character sheet | `EquipArmor`, `EquipShield` |
 | Equipment (item) | An entry of the SRD equipment list with a type (Weapon, Armor, ...) | Catalogue | `domain.Equipment` |
 | Inventory | Unequipped gear – **out of scope** (assignment) | – | – |
+| Weight | Weight of an item in pounds, from the SRD (third column of the equipment CSV); items without a listed weight (packs, mounts, vehicles) count as 0 | Catalogue | `Equipment.Weight`, `WithWeight` |
+| Carrying capacity | 20 + 2 × Strength modifier, in pounds (exam rule, not the SRD's 15 × Strength) | Rules | `domain.CarryingCapacity` |
+| Encumbrance / condition | Carried weight (all equipped items) compared with the capacity: up to the capacity *none*, up to twice the capacity *encumbered*, more *heavily encumbered* | Rules / character sheet | `domain.EncumbranceFor`, `Character.Encumbrance`, `CharacterQueries.Encumbrance` |
 | Spell | A spell with a level (0 = cantrip) and the classes that may use it | Catalogue | `domain.Spell` |
 | Cantrip | Level 0 spell; shown as "Level 0" in the CLI | Rules | `cantripsKnown` |
 | Spell slot | Capacity to cast a spell of a given level | Rules | `spellSlots`, `Character.SpellSlots` |
@@ -46,3 +49,5 @@ Terms come from the SRD 5.1 and the assignment README.
 | CLI prints cantrips as "Level 0" spell slots | Kept for the CLI contract; strictly, cantrips are not slots |
 | `SpellRepository` lives in `spells_repository.go` but the type is `Spell` (singular) | File names kept from the original project |
 | *Proposed convention*: "sheet" = the calculated view of a character; "character" = the stored aggregate | Used in the documentation |
+| The encumbrance rule says "less than" the capacity and "more than" it, but not what exactly the capacity is | Exactly the capacity → *none*; exactly twice the capacity → *encumbered* (it is not "more than"). Tested in `TestEncumbranceBoundaries` |
+| "Carries" – inventory is out of scope, so only equipped items are carried | The carried weight is the sum of the main hand, off hand, armor and shield; a weapon in both hands counts twice |

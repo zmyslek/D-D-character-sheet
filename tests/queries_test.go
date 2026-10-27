@@ -255,7 +255,7 @@ func TestSRDAPIClientRateLimit(t *testing.T) {
 }
 
 func TestQueriesWithoutCharacters(t *testing.T) {
-	queries := application.NewCharacterQueries(infrastructure.NewJSONCharacterRepository(t.TempDir()+"/none.json"), nil)
+	queries := application.NewCharacterQueries(infrastructure.NewJSONCharacterRepository(t.TempDir()+"/none.json"), nil, nil)
 	if all, err := queries.GetAll(); err != nil || len(all) != 0 {
 		t.Errorf("GetAll = %v, %v", all, err)
 	}

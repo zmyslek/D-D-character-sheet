@@ -63,7 +63,10 @@ type characterView struct {
 	SpellSaveDC          int
 	SpellAttack          int
 	SkillModifiers       map[string]int
-	Editing              bool
+	// Encumbrance is shown under Features & Traits. It is empty on the
+	// creation form, where nothing is carried yet.
+	Encumbrance characterdomain.Encumbrance
+	Editing     bool
 	// SpellcastingByClass holds, per class and level 0-20, the domain's
 	// spellcasting rules, so the sheet's script can update slots when the
 	// class or level is edited without keeping its own copy of the SRD tables.
@@ -179,13 +182,13 @@ func (server *Server) characterPage(response http.ResponseWriter, request *http.
 		http.NotFound(response, request)
 		return
 	}
-	if edit {
-		view := makeCharacterView(character)
-		view.Editing = true
-		server.renderSheet(response, view)
+	view := makeCharacterView(character)
+	if view.Encumbrance, err = server.queries.Encumbrance(character); err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	server.renderSheet(response, makeCharacterView(character))
+	view.Editing = edit
+	server.renderSheet(response, view)
 }
 
 // deleteCharacter removes the URL-selected record after a form submits a POST.
