@@ -69,7 +69,8 @@ call a write method; `CharacterReader` does not even contain one.
 
 | Variable | Default | Used for |
 |---|---|---|
-| `MPP_CHARACTERS_FILE` | `data/characters.json` | character storage |
+| `MPP_STORAGE` | `json` | format of the characters file: `json` (`JSONCharacterRepository`) or `csv` (`CSVCharacterRepository`) |
+| `MPP_CHARACTERS_FILE` | `data/characters.<MPP_STORAGE>` | character storage |
 | `MPP_DATA_DIR` | `data` | SRD CSV files |
 | `MPP_ADDR` | `:8080` | `serve` listen address (`-addr` overrides) |
 | `MPP_SRD_API_URL` | `https://www.dnd5eapi.co/api/2014` | external SRD API |
@@ -77,12 +78,33 @@ call a write method; `CharacterReader` does not even contain one.
 The defaults reproduce the original behaviour, so the CLI contract used by the
 grader is unchanged. No secrets exist in this project.
 
+**Storage formats (exam feature 2).** `main.go` keeps a map
+`characterStores` from format name to a constructor that returns a
+`domain.CharacterRepository`. `MPP_STORAGE` picks the entry, and
+`export -file F [-format csv|json]` uses the same map to copy every character
+into a new file (`application.ExportCharacters`). Because the services, the
+web server and every command only know the `CharacterRepository` port, a new
+format is one new infrastructure file plus one map entry: nothing in
+`domain`, `application` or `web` changes (open/closed principle).
+
+The CSV file is meant to be opened in a spreadsheet, so it stays readable:
+one row per character, one column per field (`Name, Race, Class, Level,
+Background, STR … CHA, Skill Proficiencies, Main Hand, Off Hand, Armor,
+Shield, Known Spells, Prepared Spells`), lists in one cell separated by `; `
+(as in `Classes.csv`), no embedded JSON. Columns are found by header name, so
+a spreadsheet may reorder them or add its own (ignored, and not kept on the
+next save); Excel's byte order mark is accepted. Text that a spreadsheet
+would run as a formula (`=`, `+`, `-`, `@` at the start) is written with a
+leading apostrophe and read back without it (OWASP *CSV Injection*). The
+concurrency guarantees are the same as for the JSON file (mutex +
+write-to-temp-and-rename).
+
 ## 5. Concurrency, transactions and consistency
 
 | Shared state | Protection | Where |
 |---|---|---|
 | A character during load → change → save | `CharacterService.mu` (one command at a time per process) | `internal/application/character_service.go` |
-| The characters file | `JSONCharacterRepository.mu` + write-to-temp-and-rename | `internal/infrastructure/json_character_repository.go` |
+| The characters file | `JSONCharacterRepository.mu` / `CSVCharacterRepository.mu` + write-to-temp-and-rename | `internal/infrastructure/json_character_repository.go`, `csv_character_repository.go` |
 | Idempotency keys (`created` map) | `CharacterService.mu` | `character_service.go` |
 | SRD API rate limit (`lastRequest`) | `SRDAPIClient.mu` | `internal/infrastructure/srd_api_client.go` |
 | Enrichment results | each goroutine owns one slice element; `WaitGroup` | `CharacterQueries.EnrichCharacter` |
