@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -43,7 +44,7 @@ type app struct {
 // both use the same mutex.
 func newApp() app {
 	dataDir := envOr("MPP_DATA_DIR", "data")
-	characters := infrastructure.NewJSONCharacterRepository(envOr("MPP_CHARACTERS_FILE", filepath.Join(dataDir, "characters.json")))
+	characters := openCharacterStore(dataDir)
 	equipment := infrastructure.NewCSVEquipmentRepository(filepath.Join(dataDir, "5e-SRD-Equipment.csv"))
 	return app{
 		commands: application.NewCharacterService(
@@ -56,6 +57,37 @@ func newApp() app {
 		queries: application.NewCharacterQueries(characters, equipment,
 			infrastructure.NewSRDAPIClient(envOr("MPP_SRD_API_URL", infrastructure.DefaultSRDAPIURL))),
 	}
+}
+
+// characterStores are the supported formats of the characters file, by the
+// name used in MPP_STORAGE and "export -format". Supporting another format
+// takes a repository that implements domain.CharacterRepository and one
+// entry here; the services, web server and commands do not change.
+var characterStores = map[string]func(filePath string) characterdomain.CharacterRepository{
+	"json": func(filePath string) characterdomain.CharacterRepository {
+		return infrastructure.NewJSONCharacterRepository(filePath)
+	},
+	"csv": func(filePath string) characterdomain.CharacterRepository {
+		return infrastructure.NewCSVCharacterRepository(filePath)
+	},
+}
+
+// storeNames lists the supported formats for error messages: "csv or json".
+func storeNames() string {
+	return strings.Join(slices.Sorted(maps.Keys(characterStores)), " or ")
+}
+
+// openCharacterStore opens the characters file in the format named by
+// MPP_STORAGE (default json). The default file is data/characters.<format>;
+// MPP_CHARACTERS_FILE overrides it.
+func openCharacterStore(dataDir string) characterdomain.CharacterRepository {
+	format := strings.ToLower(envOr("MPP_STORAGE", "json"))
+	open, ok := characterStores[format]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "unknown MPP_STORAGE %q: use %s\n", format, storeNames())
+		os.Exit(2)
+	}
+	return open(envOr("MPP_CHARACTERS_FILE", filepath.Join(dataDir, "characters."+format)))
 }
 
 // usage prints the commands currently supported by the command-line interface.
@@ -74,7 +106,10 @@ func usage() {
   %s prepare-spell -name CHARACTER_NAME -spell SPELL_NAME 
   %s level -name CHARACTER_NAME -level N
   %s enrich -name CHARACTER_NAME
-`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+  %s export -file FILE [-format csv|json]
+
+Storage: MPP_STORAGE=json (default) or csv selects the format of the characters file.
+`, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 // Texts used by several commands.
@@ -102,6 +137,7 @@ func main() {
 		"learn-spell":   func(args []string) int { return runSpell("learn-spell", args, false) },
 		"prepare-spell": func(args []string) int { return runSpell("prepare-spell", args, true) },
 		"level":         runLevel,
+		"export":        runExport,
 	}
 	run, ok := commands[os.Args[1]]
 	if !ok {
@@ -441,6 +477,41 @@ func runLevel(args []string) int {
 		return 0
 	}
 	fmt.Printf("%s is now level %d (proficiency bonus %+d)\n", character.Name(), character.Level(), character.ProficiencyBonus())
+	return 0
+}
+
+// runExport copies every saved character into a new file, by default a CSV
+// file a spreadsheet program can open. It never overwrites an existing file.
+func runExport(args []string) int {
+	flags := flag.NewFlagSet("export", flag.ContinueOnError)
+	file := flags.String("file", "", "file to create")
+	format := flags.String("format", "csv", "format of the new file: "+storeNames())
+	if flags.Parse(args) != nil {
+		return 0
+	}
+	if *file == "" {
+		fmt.Println("file is required")
+		return 2
+	}
+	open, ok := characterStores[strings.ToLower(*format)]
+	if !ok {
+		fmt.Printf("unknown format %q: use %s\n", *format, storeNames())
+		return 2
+	}
+	if _, err := os.Stat(*file); !errors.Is(err, os.ErrNotExist) {
+		fmt.Printf("%s already exists; choose a new file\n", *file)
+		return 1
+	}
+	count, err := application.ExportCharacters(newApp().queries, open(*file))
+	if err != nil {
+		fmt.Println(err)
+		return 1
+	}
+	noun := "characters"
+	if count == 1 {
+		noun = "character"
+	}
+	fmt.Printf("exported %d %s to %s\n", count, noun, *file)
 	return 0
 }
 
