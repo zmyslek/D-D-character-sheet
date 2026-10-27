@@ -1,5 +1,6 @@
 coverage.out
 .scannerwork/
 .characters-*.json
+.characters-*.csv
 coverage-cli.out
 .cover/
