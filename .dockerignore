@@ -6,7 +6,9 @@ tests
 tools
 coverage.out
 data/characters.json
+data/characters.csv
 .characters-*.json
+.characters-*.csv
 Dockerfile
 docker-compose.yml
 .cover
