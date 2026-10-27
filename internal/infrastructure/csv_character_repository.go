@@ -320,8 +320,9 @@ func (r *CSVCharacterRepository) writeAll(characters []*domain.Character) error 
 }
 
 // replaceFile writes data to a temporary file in the same folder and renames
-// it over path. A rename within one folder is atomic. The temporary file of
-// characters.csv is named like .characters-123.csv (ignored by git and Docker).
+// it over path. A rename within one folder is atomic. Both character
+// repositories use it. The temporary file of characters.csv is named like
+// .characters-123.csv (ignored by git and Docker).
 func replaceFile(path string, data []byte) error {
 	extension := filepath.Ext(path)
 	pattern := "." + strings.TrimSuffix(filepath.Base(path), extension) + "-*" + extension

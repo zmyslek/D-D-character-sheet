@@ -203,3 +203,42 @@ corrections towards the SRD, which the assignment requires.
   access.
 * Complexity and duplication went down while coverage went up, measured with
   the same tool before and after.
+
+## 8. Exam re-measurement (2026-10-27)
+
+Before = branch `main` (the code graded 100% in CodeGrade, commit `b348eb9`).
+After = branch `exam/final` (both features merged, plus the follow-up
+refactor that lets `JSONCharacterRepository` reuse `replaceFile`). Same
+tools and commands as §4, Go 1.27.1.
+
+| Metric | Before | After |
+|---|---|---|
+| Automated tests (`func Test…` in `tests/`) | 58 | 79 (all pass) |
+| Statement coverage `internal/` + `web/` | 88.4% | 90.8% |
+| Coverage of the new domain rules (`encumbrance.go`) and `CharacterQueries.Encumbrance` | – | 100% |
+| Unit code in functions > 60 lines | 0% | 0% |
+| Unit code with cyclomatic complexity 1–5 / > 25 | 56.9% / 0% | 60.9% / 0% |
+| Duplicated code (6+ identical lines) | 3.0% | 3.5% (4.5% before the `replaceFile` refactor) |
+| Dependency-rule violations (`TestDependencyDirection`) | 0 | 0 |
+| `go vet ./...`, gofmt | clean | clean |
+
+**Extensibility (open/closed), measured as lines of existing production code
+changed** (`git diff --numstat main <branch>`, Go and HTML files, tests and
+docs excluded):
+
+| Feature | New files | Existing lines changed or removed | Where |
+|---|---|---|---|
+| 1 – encumbrance | `domain/encumbrance.go` | 15 | `character_queries.go` (constructor takes the equipment list), `csv_equipment_repository.go` (reads the weight), `main.go` (wiring, `view -full`), `web/server.go` (sheet view); `equipment.go` only gained lines |
+| 2 – CSV storage | `infrastructure/csv_character_repository.go`, `application/character_export.go` | 2 | both in `main.go`, the composition root (storage chosen from the `characterStores` map; usage text) |
+
+Feature 2 is a new adapter for an existing port: domain, application and web
+were not modified. Feature 1 brings new data (weight) and a new rule, so the
+entity that owns the data (`Equipment`) and the adapter that reads it had to
+learn about weight. The one change that ripples is the new constructor
+argument of `NewCharacterQueries`, which reaches its two callers: `main.go`
+and the test helper `servicesFor`.
+
+The remaining duplication between the two character repositories (14 lines:
+mutex + read-modify-write skeleton) is kept on purpose. Removing it would
+need a shared generic file store, which costs more to understand than two
+short methods.
