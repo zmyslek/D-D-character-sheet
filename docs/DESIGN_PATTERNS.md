@@ -24,10 +24,25 @@ project does not use that vocabulary in its package names.
 |---|---|
 | Purpose | Hide how and where objects are stored behind a collection-like interface |
 | Problem solved | The original `main.go` and `web` read files directly; now both use the same interface |
-| Where | interfaces: `domain.CharacterRepository`, `ClassRepository`, `RaceAbilityRepository`, `EquipmentRepository`, `SpellRepository`, `application.CharacterReader` (read-only view). Implementations: `JSONCharacterRepository`, `CSVClassRepository`, `CSVRaceAbilityRepository`, `CSVEquipmentRepository`, `CSVSpellsRepository` |
+| Where | interfaces: `domain.CharacterRepository`, `ClassRepository`, `RaceAbilityRepository`, `EquipmentRepository`, `SpellRepository`, `application.CharacterReader` (read-only view). Implementations: `JSONCharacterRepository`, `CSVCharacterRepository`, `CSVClassRepository`, `CSVRaceAbilityRepository`, `CSVEquipmentRepository`, `CSVSpellsRepository` |
 | Why appropriate | One repository per aggregate root (`Character`) plus read-only repositories for reference data |
 | Cost | Every query loads the whole file (acceptable for tens of characters) |
-| Tested by | `TestJSONRepositoryFiles`, `TestCSVRepositoriesWithRealData`, all service tests (real repositories on temporary files) |
+| Tested by | `TestJSONRepositoryFiles`, `TestCSVRepositoriesWithRealData`, all service tests (real repositories on temporary files); `TestCharacterStoragesBehaveTheSame` runs one contract test against both character repositories |
+
+**Exam feature 2 shows the payoff.** The CSV storage is a second
+implementation of the same port. It was added with one new file
+(`csv_character_repository.go`) and one entry in the `characterStores` map in
+`main.go`. The domain, the services and the web server were not changed.
+
+## Registry of factories (storage selection)
+
+| | |
+|---|---|
+| Purpose | Choose an implementation by name at start-up without a growing `switch` |
+| Where | `characterStores` in `main.go`: `"json"` / `"csv"` → constructor returning `domain.CharacterRepository`; used for `MPP_STORAGE` and `export -format` |
+| Why appropriate | A new format is a new map entry (open/closed); the error message lists the valid names from the same map, so it cannot get out of date |
+| Cost | A map of functions is slightly less obvious than a `switch` to a first-time reader |
+| Tested by | `TestCLIWithCSVStorage` (incl. unknown `MPP_STORAGE`), `TestCLIExport` |
 
 ## Dependency injection (constructor injection)
 

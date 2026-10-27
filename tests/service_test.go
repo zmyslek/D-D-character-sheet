@@ -25,7 +25,7 @@ func newService(t *testing.T) (*application.CharacterService, *application.Chara
 }
 
 func servicesFor(file string, resources application.ResourceLookup) (*application.CharacterService, *application.CharacterQueries) {
-	characters := infrastructure.NewJSONCharacterRepository(file)
+	characters := openCharacters(file)
 	equipment := infrastructure.NewCSVEquipmentRepository("../data/5e-SRD-Equipment.csv")
 	return application.NewCharacterService(
 			characters,

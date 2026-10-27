@@ -83,3 +83,23 @@ directory with a copy of `data/*.csv`, `MPP_SRD_API_URL=http://127.0.0.1:1`
 | E-03 | Shield, armor and a heavy crossbow | `mpp equip -name Pip -weapon "crossbow, heavy" -slot "main hand"`; view | `Condition: heavily encumbered (37 lb carried, capacity 18 lb)` | as expected | Pass |
 | E-04 | Plain `view` is unchanged | `mpp view -name Pip` | no `Condition` line (the CodeGrade output stays identical) | as expected; also `TestCLIViewExactOutput` | Pass |
 | E-05 | Shown on the sheet | `mpp serve`, open `/characters/Pip` | "Features & Traits" starts with `Condition: heavily encumbered (37 lb carried, capacity 18 lb)` | – | Not executed (the page data is checked by `TestSheetShowsEncumbrance`) |
+
+## F. Exam feature 2 – CSV storage
+
+Executed on 2026-10-27 in an empty directory with a copy of `data/*.csv`.
+
+| ID | Objective | Steps | Expected result | Actual result | Status |
+|---|---|---|---|---|---|
+| S-01 | CLI on CSV storage | `export MPP_STORAGE=csv`; `mpp create -name Mira -race elf -class wizard -int 15`; `mpp equip -name Mira -weapon dagger -slot "main hand"`; `mpp prepare-spell -name Mira -spell "fire bolt"`; `mpp list`; `cat data/characters.csv` | every command succeeds; `data/characters.csv` has a header and one readable row; no `characters.json` | see result below the table | Pass |
+| S-02 | Open in a spreadsheet | open `data/characters.csv` in Excel / LibreOffice Calc | one column per field, lists readable | – | Not executed |
+| S-03 | Edit in a spreadsheet and read back | change the level cell to 3, save as CSV, `mpp view -name Mira` | `Level: 3` | – | Not executed (the same edits are automated in `TestCSVFileEditedInASpreadsheet`) |
+| S-04 | Export the JSON storage | `unset MPP_STORAGE`; create a character; `mpp export -file party.csv`; again | `exported 1 character to party.csv`; then `party.csv already exists; choose a new file` (exit 1) | as expected | Pass |
+
+S-01 output (`saved character Mira`, `Equipped weapon dagger to main hand`,
+`Prepared spell fire bolt`, `Mira - elf wizard (level 1)`); `data/` contains
+only `characters.csv`, no `characters.json`:
+
+```
+Name,Race,Class,Level,Background,STR,DEX,CON,INT,WIS,CHA,Skill Proficiencies,Main Hand,Off Hand,Armor,Shield,Known Spells,Prepared Spells
+Mira,elf,wizard,1,acolyte,10,2,0,15,0,0,arcana; history; insight; religion,Dagger,,,,,fire bolt
+```
