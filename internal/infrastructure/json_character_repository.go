@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"mpp-zmyslek/internal/domain"
@@ -205,21 +204,5 @@ func (r *JSONCharacterRepository) writeAll(characters []*domain.Character) error
 	if err != nil {
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
-	temp, err := os.CreateTemp(filepath.Dir(r.filePath), ".characters-*.json")
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer os.Remove(temp.Name()) // no-op after a successful rename
-	if _, err := temp.Write(data); err != nil {
-		temp.Close()
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-	if err := temp.Close(); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-	// CreateTemp makes owner-only files; keep the file readable like before.
-	if err := os.Chmod(temp.Name(), 0o644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-	return os.Rename(temp.Name(), r.filePath)
+	return replaceFile(r.filePath, data)
 }
